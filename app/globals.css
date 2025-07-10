@@ -1,8 +1,127 @@
 @import "tailwindcss";
 
+/* Glassmorphism Design System - Color Variables */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Light Mode Colors */
+  --background: #f8fafc;
+  --foreground: #1e293b;
+  
+  /* Glass Effects - Light Mode */
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-bg-strong: rgba(255, 255, 255, 0.2);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-shadow: rgba(0, 0, 0, 0.1);
+  --glass-shadow-strong: rgba(0, 0, 0, 0.15);
+  
+  /* Primary Glass Colors */
+  --glass-primary: rgba(59, 130, 246, 0.1);
+  --glass-primary-strong: rgba(59, 130, 246, 0.2);
+  --glass-primary-border: rgba(59, 130, 246, 0.3);
+  
+  /* Secondary Glass Colors */
+  --glass-secondary: rgba(139, 92, 246, 0.1);
+  --glass-secondary-strong: rgba(139, 92, 246, 0.2);
+  --glass-secondary-border: rgba(139, 92, 246, 0.3);
+  
+  /* Accent Glass Colors */
+  --glass-accent: rgba(236, 72, 153, 0.1);
+  --glass-accent-strong: rgba(236, 72, 153, 0.2);
+  --glass-accent-border: rgba(236, 72, 153, 0.3);
+  
+  /* Success Glass Colors (Green) */
+  --glass-success: rgba(34, 197, 94, 0.1);
+  --glass-success-strong: rgba(34, 197, 94, 0.2);
+  --glass-success-border: rgba(34, 197, 94, 0.3);
+  
+  /* Warning Glass Colors (Yellow) */
+  --glass-warning: rgba(245, 158, 11, 0.1);
+  --glass-warning-strong: rgba(245, 158, 11, 0.2);
+  --glass-warning-border: rgba(245, 158, 11, 0.3);
+  
+  /* Error Glass Colors (Red) */
+  --glass-error: rgba(239, 68, 68, 0.1);
+  --glass-error-strong: rgba(239, 68, 68, 0.2);
+  --glass-error-border: rgba(239, 68, 68, 0.3);
+  
+  /* Surface Colors */
+  --surface-elevated: rgba(255, 255, 255, 0.8);
+  --surface-base: rgba(255, 255, 255, 0.6);
+  --surface-sunken: rgba(255, 255, 255, 0.4);
+  
+  /* Text Colors */
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-on-glass: #1e293b;
+  
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  
+  /* Blur Values */
+  --blur-sm: 8px;
+  --blur-md: 12px;
+  --blur-lg: 16px;
+  --blur-xl: 24px;
+}
+
+/* Dark Mode Colors - Using data-theme attribute */
+[data-theme="dark"] {
+  /* Dark Mode Colors - Following Apple/Material Design guidelines */
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  
+  /* Glass Effects - Dark Mode */
+  --glass-bg: rgba(23, 23, 23, 0.6);
+  --glass-bg-strong: rgba(38, 38, 38, 0.8);
+  --glass-bg-subtle: rgba(23, 23, 23, 0.3);
+  --glass-border: rgba(82, 82, 82, 0.3);
+  --glass-shadow: rgba(0, 0, 0, 0.4);
+  --glass-shadow-strong: rgba(0, 0, 0, 0.6);
+  
+  /* Primary Glass Colors */
+  --glass-primary: rgba(72, 182, 245, 0.15);
+  --glass-primary-strong: rgba(72, 182, 245, 0.25);
+  --glass-primary-border: rgba(72, 182, 245, 0.4);
+  
+  /* Secondary Glass Colors */
+  --glass-secondary: rgba(168, 85, 247, 0.15);
+  --glass-secondary-strong: rgba(168, 85, 247, 0.25);
+  --glass-secondary-border: rgba(168, 85, 247, 0.4);
+  
+  /* Accent Glass Colors */
+  --glass-accent: rgba(251, 113, 186, 0.15);
+  --glass-accent-strong: rgba(251, 113, 186, 0.25);
+  --glass-accent-border: rgba(251, 113, 186, 0.4);
+  
+  /* Success Glass Colors (Green) */
+  --glass-success: rgba(52, 211, 153, 0.15);
+  --glass-success-strong: rgba(52, 211, 153, 0.25);
+  --glass-success-border: rgba(52, 211, 153, 0.4);
+  
+  /* Warning Glass Colors (Yellow) */
+  --glass-warning: rgba(251, 191, 36, 0.15);
+  --glass-warning-strong: rgba(251, 191, 36, 0.25);
+  --glass-warning-border: rgba(251, 191, 36, 0.4);
+  
+  /* Error Glass Colors (Red) */
+  --glass-error: rgba(248, 113, 113, 0.15);
+  --glass-error-strong: rgba(248, 113, 113, 0.25);
+  --glass-error-border: rgba(248, 113, 113, 0.4);
+  
+  /* Surface Colors */
+  --surface-elevated: rgba(38, 38, 38, 0.9);
+  --surface-base: rgba(23, 23, 23, 0.7);
+  --surface-sunken: rgba(15, 15, 15, 0.5);
+  
+  /* Text Colors */
+  --text-primary: #fafafa;
+  --text-secondary: #e5e5e5;
+  --text-muted: #a3a3a3;
+  --text-on-glass: #fafafa;
 }
 
 @theme inline {
@@ -10,17 +129,291 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* Glass Background Utilities */
+  --color-glass: var(--glass-bg);
+  --color-glass-strong: var(--glass-bg-strong);
+  --color-glass-subtle: var(--glass-bg-subtle);
+  
+  /* Glass Primary Colors */
+  --color-glass-primary: var(--glass-primary);
+  --color-glass-primary-strong: var(--glass-primary-strong);
+  
+  /* Glass Secondary Colors */
+  --color-glass-secondary: var(--glass-secondary);
+  --color-glass-secondary-strong: var(--glass-secondary-strong);
+  
+  /* Glass Accent Colors */
+  --color-glass-accent: var(--glass-accent);
+  --color-glass-accent-strong: var(--glass-accent-strong);
+  
+  /* Glass Semantic Colors */
+  --color-glass-success: var(--glass-success);
+  --color-glass-success-strong: var(--glass-success-strong);
+  --color-glass-warning: var(--glass-warning);
+  --color-glass-warning-strong: var(--glass-warning-strong);
+  --color-glass-error: var(--glass-error);
+  --color-glass-error-strong: var(--glass-error-strong);
+  
+  /* Surface Colors */
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-base: var(--surface-base);
+  --color-surface-sunken: var(--surface-sunken);
+  
+  /* Text Colors */
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-on-glass: var(--text-on-glass);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glass Utility Classes */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  border-radius: var(--radius-md);
+  box-shadow: 
+    0 8px 32px var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.glass-strong {
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--blur-lg));
+  -webkit-backdrop-filter: blur(var(--blur-lg));
+  border-radius: var(--radius-md);
+  box-shadow: 
+    0 12px 40px var(--glass-shadow-strong),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.glass-subtle {
+  background: var(--glass-bg-subtle);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
+  border-radius: var(--radius-md);
+  box-shadow: 
+    0 4px 24px var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-primary {
+  background: var(--glass-primary);
+  border: 1px solid var(--glass-primary-border);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  border-radius: var(--radius-md);
+  box-shadow: 
+    0 8px 32px var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.glass-secondary {
+  background: var(--glass-secondary);
+  border: 1px solid var(--glass-secondary-border);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  border-radius: var(--radius-md);
+  box-shadow: 
+    0 8px 32px var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.glass-accent {
+  background: var(--glass-accent);
+  border: 1px solid var(--glass-accent-border);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  border-radius: var(--radius-md);
+  box-shadow: 
+    0 8px 32px var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.glass-success {
+  background: var(--glass-success);
+  border: 1px solid var(--glass-success-border);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  border-radius: var(--radius-md);
+  box-shadow: 
+    0 8px 32px var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.glass-warning {
+  background: var(--glass-warning);
+  border: 1px solid var(--glass-warning-border);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  border-radius: var(--radius-md);
+  box-shadow: 
+    0 8px 32px var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.glass-error {
+  background: var(--glass-error);
+  border: 1px solid var(--glass-error-border);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
+  border-radius: var(--radius-md);
+  box-shadow: 
+    0 8px 32px var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Surface Utility Classes */
+.surface-elevated {
+  background: var(--surface-elevated);
+  border-radius: var(--radius-md);
+  box-shadow: 
+    0 16px 48px var(--glass-shadow),
+    0 0 0 1px var(--glass-border);
+}
+
+.surface-base {
+  background: var(--surface-base);
+  border-radius: var(--radius-md);
+  box-shadow: 
+    0 8px 32px var(--glass-shadow),
+    0 0 0 1px var(--glass-border);
+}
+
+.surface-sunken {
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+  box-shadow: 
+    inset 0 2px 8px var(--glass-shadow),
+    0 0 0 1px var(--glass-border);
+}
+
+/* Focus and Interaction States */
+.glass:focus-visible,
+.glass-strong:focus-visible,
+.glass-subtle:focus-visible,
+.glass-primary:focus-visible,
+.glass-secondary:focus-visible,
+.glass-accent:focus-visible,
+.glass-success:focus-visible,
+.glass-warning:focus-visible,
+.glass-error:focus-visible {
+  outline: 2px solid var(--glass-primary-border);
+  outline-offset: 2px;
+}
+
+/* Glass Shimmer Animation */
+@keyframes glass-shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.glass-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  background-size: 200px 100%;
+  animation: glass-shimmer 2s ease-in-out infinite;
+}
+
+/* Mobile Optimizations */
+/* Animation utilities */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes zoom-in-95 {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: fade-in;
+}
+
+.zoom-in-95 {
+  animation-name: zoom-in-95;
+}
+
+.duration-200 {
+  animation-duration: 200ms;
+}
+
+/* Improved focus styles */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2;
+}
+
+/* Better hover transitions */
+.hover-lift {
+  transition: all 0.2s ease-in-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Improved glass morphism */
+.glass-enhanced {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .glass-enhanced {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 768px) {
+  :root {
+    --blur-sm: 4px;
+    --blur-md: 8px;
+    --blur-lg: 12px;
+    --blur-xl: 16px;
+  }
 }
