@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
@@ -52,7 +52,7 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setEditData({
       title: event.title,
       description: event.description,
@@ -63,7 +63,7 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
     setTimeout(() => {
       (document.activeElement as HTMLElement)?.blur?.();
     }, 50);
-  };
+  }, [event.title, event.description, event.addToTimeline]);
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this event?')) {

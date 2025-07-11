@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Event } from './types';
 import { eventService } from './eventService';
 import { isWithinInterval, parseISO } from 'date-fns';
@@ -25,7 +25,7 @@ export function useTimelineEvents(options: UseTimelineEventsOptions = {}): UseTi
   const [error, setError] = useState<string | null>(null);
   const { dateRange } = options;
 
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -56,12 +56,12 @@ export function useTimelineEvents(options: UseTimelineEventsOptions = {}): UseTi
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange]);
 
   // Load events on mount
   useEffect(() => {
     loadEvents();
-  }, []);
+  }, [loadEvents]);
 
   // Listen for localStorage changes to update events
   useEffect(() => {
@@ -73,7 +73,7 @@ export function useTimelineEvents(options: UseTimelineEventsOptions = {}): UseTi
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  }, [loadEvents]);
 
   // Listen for custom events when events are updated within the same tab
   useEffect(() => {
@@ -83,7 +83,7 @@ export function useTimelineEvents(options: UseTimelineEventsOptions = {}): UseTi
 
     window.addEventListener('events-updated', handleEventUpdate);
     return () => window.removeEventListener('events-updated', handleEventUpdate);
-  }, []);
+  }, [loadEvents]);
 
   // Filter, sort, and apply date range to timeline events
   const timelineEvents = useMemo(() => {

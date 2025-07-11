@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import { IoTimeOutline, IoCalendarOutline, IoEyeOutline, IoCreateOutline, IoTrashOutline, IoCheckmark, IoClose } from 'react-icons/io5';
+import { IoCalendarOutline, IoEyeOutline, IoCheckmark, IoClose, IoTrash } from 'react-icons/io5';
+import { FaPencilAlt } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { Event } from '../lib/types';
 import { cn } from '../lib/utils';
@@ -54,14 +55,14 @@ export function TimelineCard({ event, className, onEdit, onDelete }: TimelineCar
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setEditData({
       title: event.title,
       description: event.description,
       addToTimeline: event.addToTimeline,
     });
     setIsEditing(false);
-  };
+  }, [event.title, event.description, event.addToTimeline]);
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this timeline event?')) {
@@ -84,7 +85,7 @@ export function TimelineCard({ event, className, onEdit, onDelete }: TimelineCar
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isEditing]);
+  }, [isEditing, handleCancel]);
 
   return (
     <GlassCard 
@@ -108,10 +109,10 @@ export function TimelineCard({ event, className, onEdit, onDelete }: TimelineCar
               variant="ghost"
               size="sm"
               onClick={handleEdit}
-              className="w-8 h-8 p-0 opacity-70 hover:opacity-100 transition-opacity"
+              className="w-10 h-10 p-0 opacity-70 hover:opacity-100 transition-opacity"
               title="Edit event"
             >
-              <IoCreateOutline className="w-4 h-4" />
+              <FaPencilAlt className="w-6 h-6" />
             </GlassButton>
           )}
           {onDelete && (
@@ -119,10 +120,10 @@ export function TimelineCard({ event, className, onEdit, onDelete }: TimelineCar
               variant="ghost"
               size="sm"
               onClick={handleDelete}
-              className="w-8 h-8 p-0 opacity-70 hover:opacity-100 transition-opacity text-red-500 hover:text-red-600"
+              className="w-10 h-10 p-0 opacity-70 hover:opacity-100 transition-opacity text-red-500 hover:text-red-600"
               title="Delete event"
             >
-              <IoTrashOutline className="w-4 h-4" />
+              <IoTrash className="w-6 h-6" />
             </GlassButton>
           )}
         </div>
@@ -135,19 +136,19 @@ export function TimelineCard({ event, className, onEdit, onDelete }: TimelineCar
             variant="ghost"
             size="sm"
             onClick={handleCancel}
-            className="w-8 h-8 p-0 opacity-70 hover:opacity-100 transition-opacity"
+            className="w-10 h-10 p-0 opacity-70 hover:opacity-100 transition-opacity"
             title="Cancel"
           >
-            <IoClose className="w-4 h-4" />
+            <IoClose className="w-6 h-6" />
           </GlassButton>
           <GlassButton
             variant="ghost"
             size="sm"
             onClick={handleSave}
-            className="w-8 h-8 p-0 opacity-70 hover:opacity-100 transition-opacity text-green-500 hover:text-green-600"
+            className="w-10 h-10 p-0 opacity-70 hover:opacity-100 transition-opacity text-green-500 hover:text-green-600"
             title="Save"
           >
-            <IoCheckmark className="w-4 h-4" />
+            <IoCheckmark className="w-6 h-6" />
           </GlassButton>
         </div>
       )}

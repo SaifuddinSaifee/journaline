@@ -2,16 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { EventModel } from '@/app/lib/models/Event';
 import { EventFormData } from '@/app/lib/types';
 
-interface RouteContext {
-  params: {
-    id: string;
-  };
-}
-
 // GET /api/events/[id] - Retrieve a specific event
-export async function GET(request: NextRequest, { params }: RouteContext) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json(
@@ -40,9 +37,12 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 }
 
 // PUT /api/events/[id] - Update a specific event
-export async function PUT(request: NextRequest, { params }: RouteContext) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
 
     if (!id) {
@@ -107,9 +107,12 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
 }
 
 // DELETE /api/events/[id] - Delete a specific event
-export async function DELETE(request: NextRequest, { params }: RouteContext) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json(

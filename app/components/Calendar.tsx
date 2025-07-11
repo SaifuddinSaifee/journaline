@@ -44,17 +44,17 @@ export function Calendar({ selectedDate, onDateSelect, className }: CalendarProp
               variant="ghost"
               size="sm"
               onClick={previousMonth}
-              className="w-8 h-8 p-0"
+              className="w-10 h-10 p-0"
             >
-              <IoChevronBack className="w-4 h-4" />
+              <IoChevronBack className="w-6 h-6" />
             </GlassButton>
             <GlassButton
               variant="ghost"
               size="sm"
               onClick={nextMonth}
-              className="w-8 h-8 p-0"
+              className="w-10 h-10 p-0"
             >
-              <IoChevronForward className="w-4 h-4" />
+              <IoChevronForward className="w-6 h-6" />
             </GlassButton>
           </div>
         </div>

@@ -177,6 +177,7 @@ class EventService {
       let failed = 0;
 
       for (const event of localEvents) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, ...eventData } = event; // Remove id for creation
         const result = await this.createEvent({
           ...eventData,

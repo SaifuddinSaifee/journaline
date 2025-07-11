@@ -33,32 +33,38 @@ export function Sidebar({ className }: SidebarProps) {
         isCollapsed ? 'w-16' : 'w-64',
         className
       )}>
-        <div className="h-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-r border-gray-200/30 dark:border-gray-700/30">
-          {/* Toggle Button */}
-          <div className="p-4 border-b border-gray-200/20 dark:border-gray-700/20">
+        <div className="h-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-r border-gray-200/30 dark:border-gray-700/30 relative">
+          
+          {/* Sidebar Header */}
+          <div className="p-4 border-b border-gray-200/20 dark:border-gray-700/20 flex items-center justify-end">
+            {/* Standard Collapse Toggle */}
             <GlassButton
               variant="ghost"
               size="sm"
               onClick={toggleSidebar}
-              className="w-full justify-center"
+              className="w-12 h-12 p-0 flex items-center justify-center hover:bg-gray-100/50 dark:hover:bg-gray-700/50"
               title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               <IoChevronBack
                 className={cn(
-                  'w-5 h-5 transition-transform duration-300',
+                  'w-7 h-7 transition-transform duration-300 text-text-secondary hover:text-text-primary',
                   isCollapsed ? 'rotate-180' : ''
                 )}
               />
             </GlassButton>
           </div>
 
-          {/* Calendar */}
+          {/* Calendar Content */}
           <div className="flex-1 overflow-y-auto">
-            {!isCollapsed && (
+            {!isCollapsed ? (
               <Calendar
                 selectedDate={selectedDate}
                 onDateSelect={handleDateSelect}
               />
+            ) : (
+              <div className="p-2">
+                {/* Collapsed state - minimal calendar icon could go here if needed */}
+              </div>
             )}
           </div>
         </div>

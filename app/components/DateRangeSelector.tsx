@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { format, subDays, subWeeks, subMonths, startOfDay, endOfDay, isAfter, isBefore } from 'date-fns';
+import { format, subDays, subMonths, startOfDay, endOfDay, isAfter } from 'date-fns';
 import { IoCalendarOutline, IoChevronDown, IoCloseCircle } from 'react-icons/io5';
 import { cn } from '../lib/utils';
 import GlassButton from './GlassButton';
@@ -64,6 +64,14 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
         endDate: endOfDay(new Date()),
       }),
     },
+    {
+      label: 'All time',
+      value: 'alltime',
+      getRange: () => ({
+        startDate: null,
+        endDate: null,
+      }),
+    },
   ];
 
   const handlePresetSelect = (preset: typeof presets[0]) => {
@@ -95,6 +103,7 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
     onDateRangeChange({ startDate: null, endDate: null });
     setCustomStartDate('');
     setCustomEndDate('');
+    setIsOpen(false);
   };
 
   const formatDateRange = (range: DateRange) => {
@@ -113,14 +122,23 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
   };
 
   const getActivePreset = () => {
-    if (!dateRange.startDate || !dateRange.endDate) return null;
-    
     return presets.find(preset => {
       const presetRange = preset.getRange();
-      return (
-        presetRange.startDate?.getTime() === dateRange.startDate?.getTime() &&
-        presetRange.endDate?.getTime() === dateRange.endDate?.getTime()
-      );
+      
+      // Handle "All time" case (both preset and current range have null values)
+      if (!presetRange.startDate && !presetRange.endDate && !dateRange.startDate && !dateRange.endDate) {
+        return true;
+      }
+      
+      // Handle date range presets
+      if (presetRange.startDate && presetRange.endDate && dateRange.startDate && dateRange.endDate) {
+        return (
+          presetRange.startDate.getTime() === dateRange.startDate.getTime() &&
+          presetRange.endDate.getTime() === dateRange.endDate.getTime()
+        );
+      }
+      
+      return false;
     });
   };
 
@@ -152,13 +170,13 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 z-50 w-full sm:w-80">
-          <GlassCard variant="default" className="p-4 shadow-xl">
+        <div className="absolute top-full right-0 mt-2 z-50 w-80 max-w-[calc(100vw-2rem)]">
+          <GlassCard variant="default" className="p-4 shadow-xl backdrop-blur-md bg-white/90 dark:bg-gray-800/90 border border-white/20 dark:border-gray-700/30">
             <div className="space-y-4">
-              {/* Preset Ranges */}
+              {/* Quick Select Pills */}
               <div>
                 <h3 className="text-sm font-medium text-text-primary mb-3">Quick Select</h3>
-                <div className="grid grid-cols-1 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {presets.map((preset) => {
                     const isActive = getActivePreset()?.value === preset.value;
                     return (
@@ -166,11 +184,12 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
                         key={preset.value}
                         onClick={() => handlePresetSelect(preset)}
                         className={cn(
-                          'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
-                          'hover:bg-gray-100 dark:hover:bg-gray-800',
+                          'px-3 py-2 rounded-full text-sm font-medium transition-all duration-200',
+                          'border border-transparent',
+                          'hover:scale-105 active:scale-95',
                           isActive 
-                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
-                            : 'text-text-secondary'
+                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/25 border-blue-400' 
+                            : 'bg-white/60 dark:bg-gray-700/60 text-text-secondary hover:bg-white/80 dark:hover:bg-gray-700/80 hover:text-text-primary border-gray-200/50 dark:border-gray-600/50'
                         )}
                       >
                         {preset.label}
@@ -179,6 +198,9 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
                   })}
                 </div>
               </div>
+
+              {/* Separator */}
+              <div className="border-t border-gray-200/50 dark:border-gray-600/50"></div>
 
               {/* Custom Date Range */}
               <div>
@@ -192,9 +214,9 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
                         value={customStartDate}
                         onChange={(e) => setCustomStartDate(e.target.value)}
                         className={cn(
-                          'w-full px-3 py-2 text-sm rounded-lg border border-gray-300/30 dark:border-gray-600/30',
-                          'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
-                          'text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/50',
+                          'w-full px-3 py-2 text-sm rounded-lg border border-gray-300/50 dark:border-gray-600/50',
+                          'bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm',
+                          'text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50',
                           'transition-all duration-200'
                         )}
                       />
@@ -206,9 +228,9 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
                         value={customEndDate}
                         onChange={(e) => setCustomEndDate(e.target.value)}
                         className={cn(
-                          'w-full px-3 py-2 text-sm rounded-lg border border-gray-300/30 dark:border-gray-600/30',
-                          'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
-                          'text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/50',
+                          'w-full px-3 py-2 text-sm rounded-lg border border-gray-300/50 dark:border-gray-600/50',
+                          'bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm',
+                          'text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50',
                           'transition-all duration-200'
                         )}
                       />
@@ -218,7 +240,16 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
                     <GlassButton
                       variant="ghost"
                       size="sm"
+                      onClick={handleClearRange}
+                      className="backdrop-blur-sm bg-white/60 dark:bg-gray-700/60 hover:bg-white/80 dark:hover:bg-gray-700/80"
+                    >
+                      Clear
+                    </GlassButton>
+                    <GlassButton
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setIsOpen(false)}
+                      className="backdrop-blur-sm bg-white/60 dark:bg-gray-700/60 hover:bg-white/80 dark:hover:bg-gray-700/80"
                     >
                       Cancel
                     </GlassButton>
@@ -227,6 +258,7 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
                       size="sm"
                       onClick={handleCustomDateApply}
                       disabled={!customStartDate || !customEndDate}
+                      className="backdrop-blur-sm"
                     >
                       Apply
                     </GlassButton>
