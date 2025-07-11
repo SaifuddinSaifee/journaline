@@ -7,7 +7,6 @@ import { cn } from '../lib/utils';
 import GlassCard from './GlassCard';
 import GlassButton from './GlassButton';
 import { Event, Timeline } from '../lib/types';
-import { timelineService } from '../lib/timelineService';
 import { IoTimeOutline, IoCheckmark, IoClose, IoTrash, IoChevronDown } from 'react-icons/io5';
 import { FaPencilAlt } from 'react-icons/fa';
 
@@ -15,32 +14,32 @@ interface EventCardProps {
   event: Event;
   onEdit?: (event: Event) => void;
   onDelete?: (eventId: string) => void;
-  showTimelineBadge?: boolean;
   className?: string;
+  allTimelines: Timeline[];
 }
 
-export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, className }: EventCardProps) {
+export function EventCard({ event, onEdit, onDelete, className, allTimelines }: EventCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     title: event.title,
     description: event.description,
-    timelineIds: event.timelineIds || [],
   });
-  const [timelines, setTimelines] = useState<Timeline[]>([]);
+  const [associatedTimelines, setAssociatedTimelines] = useState<Timeline[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
-    // When entering edit mode, fetch all available timelines
-    if (isEditing) {
-      const fetchTimelines = async () => {
-        const { data } = await timelineService.getAllTimelines();
-        if (data) {
-          setTimelines(data);
-        }
-      };
-      fetchTimelines();
-    }
-  }, [isEditing]);
+    const fetchAssociatedTimelines = async () => {
+      if (event.timelineIds && event.timelineIds.length > 0) {
+        // We can find the timeline details from the `allTimelines` prop
+        const associated = allTimelines.filter(t => event.timelineIds.includes(t.id));
+        setAssociatedTimelines(associated);
+      } else {
+        setAssociatedTimelines([]);
+      }
+    };
+
+    fetchAssociatedTimelines();
+  }, [event.timelineIds, allTimelines]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -52,7 +51,7 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
         ...event,
         title: editData.title,
         description: editData.description,
-        timelineIds: editData.timelineIds,
+        timelineIds: event.timelineIds || [],
         updatedAt: new Date().toISOString(),
       };
       onEdit?.(updatedEvent);
@@ -64,10 +63,9 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
     setEditData({
       title: event.title,
       description: event.description,
-      timelineIds: event.timelineIds || [],
     });
     setIsEditing(false);
-  }, [event.title, event.description, event.timelineIds]);
+  }, [event.title, event.description]);
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this event?')) {
@@ -76,15 +74,18 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
   };
 
   const handleTimelineSelection = (timelineId: string) => {
-    setEditData(prev => {
-      const newTimelineIds = prev.timelineIds.includes(timelineId)
-        ? prev.timelineIds.filter(id => id !== timelineId)
-        : [...prev.timelineIds, timelineId];
-      return { ...prev, timelineIds: newTimelineIds };
-    });
+    const newTimelineIds = (event.timelineIds || []).includes(timelineId)
+        ? (event.timelineIds || []).filter(id => id !== timelineId)
+        : [...(event.timelineIds || []), timelineId];
+    
+    const updatedEvent: Event = {
+        ...event,
+        timelineIds: newTimelineIds,
+        updatedAt: new Date().toISOString(),
+    };
+    onEdit?.(updatedEvent);
   };
 
-  // Handle escape key to cancel editing
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isEditing) {
@@ -129,16 +130,19 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
           <p className="text-sm text-text-muted">
             {format(new Date(event.date), 'MMMM d, yyyy')}
           </p>
+          {associatedTimelines.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {associatedTimelines.map(timeline => (
+                <span key={timeline.id} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                  <IoTimeOutline className="w-3 h-3 mr-1" />
+                  {timeline.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         
         <div className="flex items-center space-x-2">
-          {showTimelineBadge && event.timelineIds?.length > 0 && !isEditing && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-              <IoTimeOutline className="w-3 h-3 mr-1" />
-              Timeline
-            </span>
-          )}
-          
           {isEditing ? (
             <div className="flex space-x-1">
               <GlassButton variant="ghost" size="sm" onClick={handleCancel} title="Cancel">
@@ -183,45 +187,12 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
                 </span>
               </div>
             </div>
-            
-            {/* Timeline Multi-Select Dropdown */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full px-3 py-2 rounded-lg border surface-elevated backdrop-blur-sm flex justify-between items-center text-left"
-                style={{ color: 'var(--text-primary)', borderColor: 'var(--glass-border)', backgroundColor: 'var(--surface-elevated)' }}
-              >
-                <span>
-                  {editData.timelineIds.length > 0
-                    ? `${editData.timelineIds.length} timeline(s) selected`
-                    : 'Add to a timeline'}
-                </span>
-                <IoChevronDown className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {isDropdownOpen && (
-                <div className="absolute w-full mt-1 bg-gray-800/80 backdrop-blur-lg border border-gray-700/50 rounded-lg shadow-xl z-10 max-h-40 overflow-y-auto">
-                  {timelines.map(timeline => (
-                    <label key={timeline.id} className="flex items-center px-3 py-2 hover:bg-white/10 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={editData.timelineIds.includes(timeline.id)}
-                        onChange={() => handleTimelineSelection(timeline.id)}
-                        className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500 border-gray-600 bg-gray-700"
-                      />
-                      <span className="ml-3 text-sm text-gray-200">{timeline.name}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         ) : (
           <div className="space-y-3">
             <div className="prose prose-sm max-w-none dark:prose-invert">
               <ReactMarkdown
                 components={{
-                  // Custom styling for markdown elements
                   p: ({ children }) => <p className="text-text-secondary mb-2 last:mb-0">{children}</p>,
                   strong: ({ children }) => <strong className="text-text-primary font-semibold">{children}</strong>,
                   em: ({ children }) => <em className="text-text-secondary italic">{children}</em>,
@@ -241,8 +212,42 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
           </div>
         )}
       </div>
+      
+      <div className="relative mt-4">
+        <button
+          type="button"
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className="w-full px-3 py-2 rounded-lg border surface-elevated backdrop-blur-sm flex justify-between items-center text-left"
+          style={{ color: 'var(--text-primary)', borderColor: 'var(--glass-border)', backgroundColor: 'var(--surface-elevated)' }}
+        >
+          <span>
+            {(event.timelineIds || []).length > 0
+              ? `${(event.timelineIds || []).length} timeline(s) selected`
+              : 'Add to a timeline'}
+          </span>
+          <IoChevronDown className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {isDropdownOpen && (
+          <div className="absolute w-full mt-1 bg-gray-800/80 backdrop-blur-lg border border-gray-700/50 rounded-lg shadow-xl z-10 max-h-40 overflow-y-auto">
+            {allTimelines.map(timeline => (
+              <label key={timeline.id} className="flex items-center px-3 py-2 hover:bg-white/10 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={(event.timelineIds || []).includes(timeline.id)}
+                  onChange={() => handleTimelineSelection(timeline.id)}
+                  className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500 border-gray-600 bg-gray-700"
+                />
+                <span className="ml-3 text-sm text-gray-200">{timeline.name}</span>
+              </label>
+            ))}
+             {allTimelines.length === 0 && (
+                <div className="px-3 py-2 text-sm text-gray-400">No timelines available.</div>
+            )}
+          </div>
+        )}
+      </div>
     </GlassCard>
   );
 }
 
-export default EventCard; 
+export default EventCard;

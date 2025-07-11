@@ -15,9 +15,10 @@ interface TimelineCardProps {
   className?: string;
   onEdit?: (event: Event) => void;
   onDelete?: (eventId: string) => void;
+  mode?: 'view' | 'edit';
 }
 
-export function TimelineCard({ event, className, onEdit, onDelete }: TimelineCardProps) {
+export function TimelineCard({ event, className, onEdit, onDelete, mode = 'view' }: TimelineCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -98,11 +99,11 @@ export function TimelineCard({ event, className, onEdit, onDelete }: TimelineCar
         'hover:bg-white/90 dark:hover:bg-gray-800/90',
         className
       )}
-      onMouseEnter={() => setShowActions(true)}
+      onMouseEnter={() => mode === 'edit' && setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
       {/* Actions Menu */}
-      {showActions && !isEditing && (onEdit || onDelete) && (
+      {showActions && !isEditing && mode === 'edit' && (onEdit || onDelete) && (
         <div className="absolute top-2 right-2 flex items-center gap-1 z-20">
           {onEdit && (
             <GlassButton

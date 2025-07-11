@@ -36,9 +36,10 @@ const VERTICAL_PADDING = 50;
 
 interface TimelineProps {
   timeline: TimelineType;
+  mode?: 'view' | 'edit';
 }
 
-export function Timeline({ timeline }: TimelineProps) {
+export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: null,
     endDate: null,
@@ -158,6 +159,7 @@ export function Timeline({ timeline }: TimelineProps) {
 
   // Mouse event handlers for dragging groups
   const handleMouseDown = useCallback((e: React.MouseEvent, groupId: string) => {
+    if (mode === 'view') return;
     e.preventDefault();
     e.stopPropagation();
     const groupIndex = orderedGroups.findIndex(g => g.date === groupId);
@@ -170,7 +172,7 @@ export function Timeline({ timeline }: TimelineProps) {
       startCustomY: currentY,
       currentY: currentY,
     });
-  }, [getGroupPosition, orderedGroups]);
+  }, [getGroupPosition, orderedGroups, mode]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!dragState.isDragging || !dragState.groupId) return;
@@ -223,6 +225,7 @@ export function Timeline({ timeline }: TimelineProps) {
 
   // Touch event handlers for mobile support
   const handleTouchStart = useCallback((e: React.TouchEvent, groupId: string) => {
+    if (mode === 'view') return;
     e.preventDefault();
     e.stopPropagation();
     const touch = e.touches[0];
@@ -236,7 +239,7 @@ export function Timeline({ timeline }: TimelineProps) {
       startCustomY: currentY,
       currentY: currentY,
     });
-  }, [getGroupPosition, orderedGroups]);
+  }, [getGroupPosition, orderedGroups, mode]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!dragState.isDragging || !dragState.groupId) return;
@@ -394,21 +397,23 @@ export function Timeline({ timeline }: TimelineProps) {
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <button
-                  onClick={handleResetPositions}
-                  disabled={isResetting}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all duration-200 ${
-                    isResetting
-                      ? 'text-gray-400 dark:text-gray-500 bg-gray-100/50 dark:bg-gray-700/50 border-gray-200/30 dark:border-gray-600/30 cursor-not-allowed'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-gray-200/50 dark:border-gray-700/50 hover:border-blue-300/50 dark:hover:border-blue-600/50 hover:shadow-md cursor-pointer'
-                  } rounded-lg border`}
-                  title={'Reset all pill positions and order to default'}
-                >
-                  <IoRefreshOutline
-                    className={`w-4 h-4 ${isResetting ? 'animate-spin' : ''}`}
-                  />
-                  {isResetting ? 'Resetting...' : 'Reset Layout'}
-                </button>
+                {mode === 'edit' && (
+                  <button
+                    onClick={handleResetPositions}
+                    disabled={isResetting}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                      isResetting
+                        ? 'text-gray-400 dark:text-gray-500 bg-gray-100/50 dark:bg-gray-700/50 border-gray-200/30 dark:border-gray-600/30 cursor-not-allowed'
+                        : 'text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-gray-200/50 dark:border-gray-700/50 hover:border-blue-300/50 dark:hover:border-blue-600/50 hover:shadow-md cursor-pointer'
+                    } rounded-lg border`}
+                    title={'Reset all pill positions and order to default'}
+                  >
+                    <IoRefreshOutline
+                      className={`w-4 h-4 ${isResetting ? 'animate-spin' : ''}`}
+                    />
+                    {isResetting ? 'Resetting...' : 'Reset Layout'}
+                  </button>
+                )}
                 <DateRangeSelector
                   dateRange={dateRange}
                   onDateRangeChange={handleDateRangeChange}
@@ -471,16 +476,16 @@ export function Timeline({ timeline }: TimelineProps) {
                       >
                         <div className="hidden md:block absolute left-1/2 top-4 transform -translate-x-1/2 z-20">
                           <div
-                            className={`bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 cursor-grab active:cursor-grabbing select-none transition-all duration-200 ${
+                            className={`bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 select-none transition-all duration-200 ${
                               isDraggingThis
                                 ? 'scale-110 shadow-lg ring-2 ring-blue-500/50 cursor-grabbing'
                                 : 'hover:shadow-lg hover:scale-105'
-                            }`}
+                            } ${mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''}`}
                             onMouseDown={e => handleMouseDown(e, group.date)}
                             onTouchStart={e =>
                               handleTouchStart(e, group.date)
                             }
-                            title="Drag to re-order date group"
+                            title={mode === 'edit' ? "Drag to re-order date group" : ""}
                           >
                             <span className="text-xs font-medium text-blue-600 dark:text-blue-400 pointer-events-none">
                               {format(groupDate, 'MMM d, yyyy')}
@@ -490,16 +495,16 @@ export function Timeline({ timeline }: TimelineProps) {
 
                         <div className="md:hidden absolute left-2 top-4 transform -translate-x-1/2 z-20">
                           <div
-                            className={`bg-white dark:bg-gray-800 px-2 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 cursor-grab active:cursor-grabbing select-none transition-all duration-200 ${
+                            className={`bg-white dark:bg-gray-800 px-2 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 select-none transition-all duration-200 ${
                               isDraggingThis
                                 ? 'scale-110 shadow-lg ring-2 ring-blue-500/50 cursor-grabbing'
                                 : 'hover:shadow-lg hover:scale-105'
-                            }`}
+                            } ${mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''}`}
                             onMouseDown={e => handleMouseDown(e, group.date)}
                             onTouchStart={e =>
                               handleTouchStart(e, group.date)
                             }
-                            title="Drag to re-order date group"
+                            title={mode === 'edit' ? "Drag to re-order date group" : ""}
                           >
                             <span className="text-xs font-medium text-blue-600 dark:text-blue-400 pointer-events-none">
                               {format(groupDate, 'MMM d')}
@@ -531,6 +536,7 @@ export function Timeline({ timeline }: TimelineProps) {
                                   event={event}
                                   onEdit={handleEditEvent}
                                   onDelete={handleDeleteEvent}
+                                  mode={mode}
                                   className={`transform transition-all duration-300 hover:scale-[1.02] ${
                                     isEven
                                       ? 'md:hover:translate-x-1'

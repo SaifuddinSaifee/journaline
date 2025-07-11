@@ -5,12 +5,14 @@ import { format } from 'date-fns';
 import GlassCard from './GlassCard';
 import EventCard from './EventCard';
 import EventModal from './EventModal';
-import { Event, EventFormData } from '../lib/types';
+import { Event, EventFormData, Timeline } from '../lib/types';
 import { eventService } from '../lib/eventService';
+import { timelineService } from '../lib/timelineService';
 import { IoCalendarOutline } from 'react-icons/io5';
 
 export function Events() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [allTimelines, setAllTimelines] = useState<Timeline[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -42,16 +44,27 @@ export function Events() {
       }
 
       // Load events from API
-      const result = await eventService.getAllEvents();
-      if (result.error) {
-        setError(result.error);
+      const eventResult = await eventService.getAllEvents();
+      if (eventResult.error) {
+        setError(eventResult.error);
         setEvents([]);
-      } else if (result.data) {
-        setEvents(result.data);
+      } else if (eventResult.data) {
+        setEvents(eventResult.data);
       }
+
+      // Load all timelines
+      const timelineResult = await timelineService.getAllTimelines();
+      if (timelineResult.error) {
+        // Non-critical, so we can just log it and continue
+        console.error('Failed to load timelines:', timelineResult.error);
+        setAllTimelines([]);
+      } else if (timelineResult.data) {
+        setAllTimelines(timelineResult.data);
+      }
+
     } catch (err) {
-      console.error('Error loading events:', err);
-      setError('Failed to load events');
+      console.error('Error loading data:', err);
+      setError('Failed to load events or timelines');
       setEvents([]);
     } finally {
       setLoading(false);
@@ -159,7 +172,7 @@ export function Events() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <GlassCard variant="default" className="min-h-96">
+      <GlassCard variant="default" hover={false} className="min-h-96">
         <div className="p-6">
           <div className="mb-6">
             <h2 className="text-3xl font-bold text-text-primary mb-2">
@@ -222,6 +235,7 @@ export function Events() {
                         event={event}
                         onEdit={handleEditEvent}
                         onDelete={handleDeleteEvent}
+                        allTimelines={allTimelines}
                       />
                     ))}
                   </div>
