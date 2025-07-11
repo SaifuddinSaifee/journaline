@@ -8,9 +8,9 @@
   
   /* Glass Effects - Light Mode */
   --glass-bg: rgba(255, 255, 255, 0.1);
-  --glass-bg-strong: rgba(255, 255, 255, 0.2);
+  --glass-bg-strong: rgba(255, 255, 255, 0.85);
   --glass-bg-subtle: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-border: rgba(255, 255, 255, 0.3);
   --glass-shadow: rgba(0, 0, 0, 0.1);
   --glass-shadow-strong: rgba(0, 0, 0, 0.15);
   
@@ -45,9 +45,9 @@
   --glass-error-border: rgba(239, 68, 68, 0.3);
   
   /* Surface Colors */
-  --surface-elevated: rgba(255, 255, 255, 0.8);
-  --surface-base: rgba(255, 255, 255, 0.6);
-  --surface-sunken: rgba(255, 255, 255, 0.4);
+  --surface-elevated: rgba(255, 255, 255, 0.95);
+  --surface-base: rgba(255, 255, 255, 0.8);
+  --surface-sunken: rgba(255, 255, 255, 0.6);
   
   /* Text Colors */
   --text-primary: #1e293b;
@@ -388,7 +388,7 @@ body {
   @apply focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2;
 }
 
-/* Better hover transitions */
+/* Improved button transitions and hover state management */
 .hover-lift {
   transition: all 0.2s ease-in-out;
 }
@@ -396,6 +396,25 @@ body {
 .hover-lift:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Fix for button state transitions to prevent lingering hover */
+button {
+  outline: none;
+}
+
+button:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Smooth transitions for dynamic button changes */
+.button-transition {
+  transition: all 0.2s ease-in-out;
+}
+
+.button-transition:hover {
+  transition-delay: 0.1s;
 }
 
 /* Improved glass morphism */

@@ -4,6 +4,7 @@ import React from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, isToday } from 'date-fns';
 import { cn } from '../lib/utils';
 import GlassButton from './GlassButton';
+import { IoChevronBack, IoChevronForward } from 'react-icons/io5';
 
 interface CalendarProps {
   selectedDate: Date | null;
@@ -45,9 +46,7 @@ export function Calendar({ selectedDate, onDateSelect, className }: CalendarProp
               onClick={previousMonth}
               className="w-8 h-8 p-0"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <IoChevronBack className="w-4 h-4" />
             </GlassButton>
             <GlassButton
               variant="ghost"
@@ -55,9 +54,7 @@ export function Calendar({ selectedDate, onDateSelect, className }: CalendarProp
               onClick={nextMonth}
               className="w-8 h-8 p-0"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              <IoChevronForward className="w-4 h-4" />
             </GlassButton>
           </div>
         </div>

@@ -426,7 +426,7 @@ export default function ThemePage() {
           <h2 className="text-4xl font-bold text-text-primary mb-8 text-center">Usage Guidelines</h2>
           <div className="grid lg:grid-cols-2 gap-8">
             <GlassCard variant="primary" className="p-8">
-              <h3 className="text-2xl font-semibold text-text-on-glass mb-6">✅ Do's</h3>
+              <h3 className="text-2xl font-semibold text-text-on-glass mb-6">✅ Do&apos;s</h3>
               <ul className="space-y-3 text-text-on-glass">
                 <li>• Use glass effects for UI chrome and overlays</li>
                 <li>• Maintain consistent blur and opacity values</li>
@@ -439,7 +439,7 @@ export default function ThemePage() {
             </GlassCard>
 
             <GlassCard variant="accent" className="p-8">
-              <h3 className="text-2xl font-semibold text-text-on-glass mb-6">❌ Don'ts</h3>
+              <h3 className="text-2xl font-semibold text-text-on-glass mb-6">❌ Don&apos;ts</h3>
               <ul className="space-y-3 text-text-on-glass">
                 <li>• Overuse glass effects (causes visual noise)</li>
                 <li>• Use glass on small text elements</li>

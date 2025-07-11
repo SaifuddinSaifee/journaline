@@ -6,6 +6,7 @@ import { cn } from '../lib/utils';
 import GlassButton from './GlassButton';
 import GlassCard from './GlassCard';
 import { EventFormData } from '../lib/types';
+import { IoClose } from 'react-icons/io5';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -20,6 +21,18 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
     description: '',
     addToTimeline: false,
   });
+
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -52,12 +65,12 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="relative max-w-md w-full animate-in zoom-in-95 duration-200">
-        <GlassCard variant="default" className="p-6 shadow-2xl">
+        <GlassCard variant="strong" className="p-6 shadow-2xl">
           <form onSubmit={handleSubmit}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-text-primary">
+              <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Add Event
               </h2>
               <GlassButton
@@ -65,17 +78,16 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
-                className="w-8 h-8 p-0"
+                className="w-10 h-10 p-0"
+                style={{ color: 'var(--text-primary)' }}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <IoClose className="w-6 h-6" />
               </GlassButton>
             </div>
 
             {selectedDate && (
               <div className="mb-4">
-                <p className="text-sm text-text-secondary">
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                   Date: {format(selectedDate, 'MMMM d, yyyy')}
                 </p>
               </div>
@@ -83,7 +95,7 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
 
             <div className="space-y-4">
               <div>
-                <label htmlFor="title" className="block text-sm font-medium text-text-primary mb-1">
+                <label htmlFor="title" className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
                   Title
                 </label>
                 <input
@@ -92,33 +104,41 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
                   className={cn(
-                    'w-full px-3 py-2 rounded-lg border border-gray-300/30 dark:border-gray-600/30',
-                    'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
-                    'text-text-primary placeholder-text-muted',
-                    'focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50',
-                    'transition-all duration-200 hover:bg-white/80 dark:hover:bg-gray-800/80'
+                    'w-full px-3 py-2 rounded-lg border',
+                    'surface-elevated backdrop-blur-sm',
+                    'focus:outline-none focus:ring-2 focus:ring-blue-500',
+                    'transition-all duration-200'
                   )}
+                  style={{ 
+                    color: 'var(--text-primary)',
+                    borderColor: 'var(--glass-border)',
+                    backgroundColor: 'var(--surface-elevated)'
+                  }}
                   placeholder="Enter event title..."
                   autoFocus
                 />
               </div>
 
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-text-primary mb-1">
+                <label htmlFor="description" className="block text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
                   Description
-                  <span className="text-xs text-text-muted ml-1">(Markdown supported)</span>
+                  <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>(Markdown supported)</span>
                 </label>
                 <textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   className={cn(
-                    'w-full px-3 py-2 rounded-lg border border-gray-300/30 dark:border-gray-600/30',
-                    'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
-                    'text-text-primary placeholder-text-muted',
-                    'focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50',
-                    'transition-all duration-200 resize-none hover:bg-white/80 dark:hover:bg-gray-800/80'
+                    'w-full px-3 py-2 rounded-lg border',
+                    'surface-elevated backdrop-blur-sm',
+                    'focus:outline-none focus:ring-2 focus:ring-blue-500',
+                    'transition-all duration-200 resize-none'
                   )}
+                  style={{ 
+                    color: 'var(--text-primary)',
+                    borderColor: 'var(--glass-border)',
+                    backgroundColor: 'var(--surface-elevated)'
+                  }}
                   placeholder="Enter event description..."
                   rows={4}
                 />
@@ -130,9 +150,13 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
                   id="addToTimeline"
                   checked={formData.addToTimeline}
                   onChange={(e) => handleInputChange('addToTimeline', e.target.checked)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 focus:ring-2"
+                  style={{ 
+                    backgroundColor: 'var(--surface-base)',
+                    borderColor: 'var(--glass-border)'
+                  }}
                 />
-                <label htmlFor="addToTimeline" className="text-sm font-medium text-text-primary">
+                <label htmlFor="addToTimeline" className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                   Add to timeline
                 </label>
               </div>
@@ -143,6 +167,7 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
                 type="button"
                 variant="ghost"
                 onClick={onClose}
+                style={{ color: 'var(--text-primary)' }}
               >
                 Cancel
               </GlassButton>

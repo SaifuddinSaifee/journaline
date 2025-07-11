@@ -5,6 +5,7 @@ import GlassButton from './GlassButton';
 import Calendar from './Calendar';
 import { cn } from '../lib/utils';
 import { useSidebar } from './MainLayout';
+import { IoChevronBack } from 'react-icons/io5';
 
 interface SidebarProps {
   className?: string;
@@ -42,22 +43,12 @@ export function Sidebar({ className }: SidebarProps) {
               className="w-full justify-center"
               title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
-              <svg
+              <IoChevronBack
                 className={cn(
                   'w-5 h-5 transition-transform duration-300',
                   isCollapsed ? 'rotate-180' : ''
                 )}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-                />
-              </svg>
+              />
             </GlassButton>
           </div>
 

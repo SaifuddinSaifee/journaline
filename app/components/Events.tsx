@@ -6,6 +6,7 @@ import GlassCard from './GlassCard';
 import EventCard from './EventCard';
 import EventModal from './EventModal';
 import { Event, EventFormData } from '../lib/types';
+import { IoCalendarOutline } from 'react-icons/io5';
 
 export function Events() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -28,6 +29,10 @@ export function Events() {
   // Save events to localStorage whenever events change
   useEffect(() => {
     localStorage.setItem('journaline-events', JSON.stringify(events));
+    
+    // Dispatch custom event to notify timeline hook of updates
+    const event = new CustomEvent('events-updated');
+    window.dispatchEvent(event);
   }, [events]);
 
   // Listen for calendar date selection
@@ -102,9 +107,7 @@ export function Events() {
 
           {events.length === 0 ? (
             <div className="text-center py-12">
-              <svg className="w-16 h-16 text-text-muted mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+              <IoCalendarOutline className="w-16 h-16 text-text-muted mx-auto mb-4" />
               <h3 className="text-lg font-medium text-text-primary mb-2">
                 No events yet
               </h3>

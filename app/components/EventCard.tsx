@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
 import GlassCard from './GlassCard';
 import GlassButton from './GlassButton';
 import { Event } from '../lib/types';
+import { IoTimeOutline, IoCheckmark, IoClose, IoTrash } from 'react-icons/io5';
+import { FaPencilAlt } from 'react-icons/fa';
 
 interface EventCardProps {
   event: Event;
@@ -25,6 +27,10 @@ export function EventCard({ event, onEdit, onDelete, className }: EventCardProps
 
   const handleEdit = () => {
     setIsEditing(true);
+    // Brief timeout to allow the hover state to clear
+    setTimeout(() => {
+      (document.activeElement as HTMLElement)?.blur?.();
+    }, 50);
   };
 
   const handleSave = () => {
@@ -38,6 +44,10 @@ export function EventCard({ event, onEdit, onDelete, className }: EventCardProps
       };
       onEdit?.(updatedEvent);
       setIsEditing(false);
+      // Brief timeout to allow the hover state to clear
+      setTimeout(() => {
+        (document.activeElement as HTMLElement)?.blur?.();
+      }, 50);
     }
   };
 
@@ -48,6 +58,10 @@ export function EventCard({ event, onEdit, onDelete, className }: EventCardProps
       addToTimeline: event.addToTimeline,
     });
     setIsEditing(false);
+    // Brief timeout to allow the hover state to clear
+    setTimeout(() => {
+      (document.activeElement as HTMLElement)?.blur?.();
+    }, 50);
   };
 
   const handleDelete = () => {
@@ -55,6 +69,18 @@ export function EventCard({ event, onEdit, onDelete, className }: EventCardProps
       onDelete?.(event.id);
     }
   };
+
+  // Handle escape key to cancel editing
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isEditing) {
+        handleCancel();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isEditing, handleCancel]);
 
   return (
     <GlassCard variant="default" className={cn('p-4 hover:shadow-lg transition-all duration-300', className)}>
@@ -87,9 +113,7 @@ export function EventCard({ event, onEdit, onDelete, className }: EventCardProps
         <div className="flex items-center space-x-2">
           {event.addToTimeline && (
             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <IoTimeOutline className="w-3 h-3 mr-1" />
               Timeline
             </span>
           )}
@@ -99,24 +123,22 @@ export function EventCard({ event, onEdit, onDelete, className }: EventCardProps
               <GlassButton
                 variant="ghost"
                 size="sm"
-                onClick={handleSave}
-                className="w-8 h-8 p-0"
-                title="Save"
+                onClick={handleCancel}
+                className="w-10 h-10 p-0 button-transition"
+                title="Cancel"
+                onMouseDown={(e) => e.currentTarget.blur()}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+                <IoClose className="w-6 h-6" />
               </GlassButton>
               <GlassButton
                 variant="ghost"
                 size="sm"
-                onClick={handleCancel}
-                className="w-8 h-8 p-0"
-                title="Cancel"
+                onClick={handleSave}
+                className="w-10 h-10 p-0 button-transition"
+                title="Save"
+                onMouseDown={(e) => e.currentTarget.blur()}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <IoCheckmark className="w-6 h-6" />
               </GlassButton>
             </div>
           ) : (
@@ -125,23 +147,21 @@ export function EventCard({ event, onEdit, onDelete, className }: EventCardProps
                 variant="ghost"
                 size="sm"
                 onClick={handleEdit}
-                className="w-8 h-8 p-0"
+                className="w-10 h-10 p-0 button-transition"
                 title="Edit"
+                onMouseDown={(e) => e.currentTarget.blur()}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
+                <FaPencilAlt className="w-6 h-6" />
               </GlassButton>
               <GlassButton
                 variant="ghost"
                 size="sm"
                 onClick={handleDelete}
-                className="w-8 h-8 p-0 text-red-500 hover:text-red-600"
+                className="w-10 h-10 p-0 text-red-500 hover:text-red-700 button-transition"
                 title="Delete"
+                onMouseDown={(e) => e.currentTarget.blur()}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+                <IoTrash className="w-6 h-6" />
               </GlassButton>
             </div>
           )}
