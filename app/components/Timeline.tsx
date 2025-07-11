@@ -13,6 +13,7 @@ import {
   IoRefreshOutline,
 } from "react-icons/io5";
 import { format } from "date-fns";
+import { motion } from "framer-motion";
 import { useTimelineEvents } from "../lib/hooks";
 import { Event } from "../lib/types";
 import { eventService } from "../lib/eventService";
@@ -56,7 +57,6 @@ export function Timeline() {
     currentY: 0,
   });
   const [isResetting, setIsResetting] = useState(false);
-  const [isInteracting, setIsInteracting] = useState(false);
   
   const timelineRef = useRef<HTMLDivElement>(null);
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -160,7 +160,6 @@ export function Timeline() {
   const handleMouseDown = useCallback((e: React.MouseEvent, groupId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsInteracting(true);
     const groupIndex = orderedGroups.findIndex(g => g.date === groupId);
     const currentY = getGroupPosition(groupId, groupIndex);
     setDragState({
@@ -205,14 +204,12 @@ export function Timeline() {
     setGroupPositions(newPositions);
     
     setDragState({ isDragging: false, groupId: null, startY: 0, startScrollY: 0, startCustomY: 0, currentY: 0 });
-    setTimeout(() => setIsInteracting(false), 500); // Allow time for CSS transitions
   }, [dragState.groupId, groupOrder, groupPositions]);
 
   // Touch event handlers for mobile support
   const handleTouchStart = useCallback((e: React.TouchEvent, groupId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsInteracting(true);
     const touch = e.touches[0];
     const groupIndex = orderedGroups.findIndex(g => g.date === groupId);
     const currentY = getGroupPosition(groupId, groupIndex);
@@ -456,17 +453,18 @@ export function Timeline() {
                       : groupY;
                     
                     return (
-                      <div
+                      <motion.div
                         key={group.date}
                         ref={el => {
                           groupRefs.current[group.date] = el;
                         }}
+                        layout
                         className="absolute w-full"
                         style={{
                           top: `${displayY}px`,
-                          transition: isInteracting ? 'none' : 'top 0.5s ease-in-out',
-                          zIndex: isDraggingThis ? 30 : 10
+                          zIndex: isDraggingThis ? 30 : 10,
                         }}
+                        transition={isDraggingThis ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 40 }}
                       >
                         <div className="hidden md:block absolute left-1/2 top-4 transform -translate-x-1/2 z-20">
                           <div
@@ -519,7 +517,7 @@ export function Timeline() {
                             } relative`}
                           >
                             <div
-                              className={`hidden md:block absolute top-6 transform -translate-y-1/2 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-10 ${
+                              className={`hidden md:block absolute top-[34px] transform -translate-y-1/2 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-10 ${
                                 isEven ? 'left-full w-8' : 'right-full w-8'
                               }`}
                             />
@@ -540,7 +538,7 @@ export function Timeline() {
                             </div>
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
                 </div>
