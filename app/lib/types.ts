@@ -6,7 +6,7 @@ export interface Event {
   title: string;
   description: string;
   date: string; // ISO date string
-  addToTimeline: boolean;
+  timelineIds: string[]; // Replaces addToTimeline
   createdAt: string;
   updatedAt: string;
 }
@@ -14,7 +14,7 @@ export interface Event {
 export interface EventFormData {
   title: string;
   description: string;
-  addToTimeline: boolean;
+  timelineIds: string[]; // Replaces addToTimeline
 }
 
 // MongoDB document interface (what gets stored in the database)
@@ -23,7 +23,7 @@ export interface EventDocument {
   title: string;
   description: string;
   date: string;
-  addToTimeline: boolean;
+  timelineIds: ObjectId[]; // Replaces addToTimeline
   createdAt: string;
   updatedAt: string;
 }
@@ -34,7 +34,48 @@ export interface EventResponse {
   title: string;
   description: string;
   date: string;
-  addToTimeline: boolean;
+  timelineIds: string[]; // Replaces addToTimeline
+  createdAt: string;
+  updatedAt: string;
+}
+
+// =================================================================
+// Timeline Types
+// =================================================================
+
+export interface Timeline {
+  id: string;
+  name: string;
+  description?: string;
+  groupPositions: Record<string, number>;
+  groupOrder: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimelineFormData {
+  name: string;
+  description?: string;
+  groupPositions?: Record<string, number>;
+  groupOrder?: string[];
+}
+
+export interface TimelineDocument {
+  _id: ObjectId;
+  name: string;
+  description?: string;
+  groupPositions: Record<string, number>;
+  groupOrder: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimelineResponse {
+  id: string;
+  name: string;
+  description?: string;
+  groupPositions: Record<string, number>;
+  groupOrder: string[];
   createdAt: string;
   updatedAt: string;
 } 

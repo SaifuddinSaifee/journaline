@@ -24,9 +24,9 @@ class EventService {
     }
   }
 
-  async getTimelineEvents(): Promise<APIResponse<EventResponse[]>> {
+  async getEventsByTimelineId(timelineId: string): Promise<APIResponse<EventResponse[]>> {
     try {
-      const response = await fetch(`${this.baseUrl}?timeline=true`);
+      const response = await fetch(`${this.baseUrl}?timelineId=${timelineId}`);
       const data = await response.json();
 
       if (!response.ok) {
