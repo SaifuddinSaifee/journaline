@@ -54,6 +54,13 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
   };
 
   const handleInputChange = (field: keyof EventFormData, value: string | boolean) => {
+    if (field === 'title' && typeof value === 'string' && value.length > 35) {
+      return; // Don't update if title exceeds 35 characters
+    }
+    if (field === 'description' && typeof value === 'string' && value.length > 250) {
+      return; // Don't update if description exceeds 250 characters
+    }
+    
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -117,6 +124,11 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
                   placeholder="Enter event title..."
                   autoFocus
                 />
+                <div className="flex justify-end mt-1">
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {formData.title.length}/35
+                  </span>
+                </div>
               </div>
 
               <div>
@@ -142,6 +154,11 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
                   placeholder="Enter event description..."
                   rows={4}
                 />
+                <div className="flex justify-end mt-1">
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {formData.description.length}/250
+                  </span>
+                </div>
               </div>
 
               <div className="flex items-center space-x-2">

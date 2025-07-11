@@ -1,5 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Event } from './types';
+import { eventService } from './eventService';
+import { isWithinInterval, parseISO } from 'date-fns';
+
+interface DateRange {
+  startDate: Date | null;
+  endDate: Date | null;
+}
+
+interface UseTimelineEventsOptions {
+  dateRange?: DateRange;
+}
 
 interface UseTimelineEventsReturn {
   events: Event[];
@@ -8,26 +19,39 @@ interface UseTimelineEventsReturn {
   refetch: () => void;
 }
 
-export function useTimelineEvents(): UseTimelineEventsReturn {
+export function useTimelineEvents(options: UseTimelineEventsOptions = {}): UseTimelineEventsReturn {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { dateRange } = options;
 
-  const loadEvents = () => {
+  const loadEvents = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      const savedEvents = localStorage.getItem('journaline-events');
-      if (savedEvents) {
-        const parsedEvents = JSON.parse(savedEvents) as Event[];
-        setEvents(parsedEvents);
+      let result;
+      
+      if (dateRange && dateRange.startDate && dateRange.endDate) {
+        // Get events within date range
+        result = await eventService.getEventsByDateRange(
+          dateRange.startDate.toISOString(),
+          dateRange.endDate.toISOString()
+        );
       } else {
+        // Get timeline events
+        result = await eventService.getTimelineEvents();
+      }
+
+      if (result.error) {
+        setError(result.error);
         setEvents([]);
+      } else if (result.data) {
+        setEvents(result.data);
       }
     } catch (err) {
-      console.error('Error loading events:', err);
-      setError('Failed to load events');
+      console.error('Error loading timeline events:', err);
+      setError('Failed to load timeline events');
       setEvents([]);
     } finally {
       setLoading(false);
@@ -61,12 +85,24 @@ export function useTimelineEvents(): UseTimelineEventsReturn {
     return () => window.removeEventListener('events-updated', handleEventUpdate);
   }, []);
 
-  // Filter and sort timeline events
+  // Filter, sort, and apply date range to timeline events
   const timelineEvents = useMemo(() => {
-    return events
-      .filter(event => event.addToTimeline)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [events]);
+    let filteredEvents = events.filter(event => event.addToTimeline);
+    
+    // Apply date range filter
+    if (dateRange && dateRange.startDate && dateRange.endDate) {
+      filteredEvents = filteredEvents.filter(event => {
+        const eventDate = parseISO(event.date);
+        return isWithinInterval(eventDate, {
+          start: dateRange.startDate!,
+          end: dateRange.endDate!,
+        });
+      });
+    }
+    
+    // Sort chronologically (newest to oldest)
+    return filteredEvents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [events, dateRange]);
 
   return {
     events: timelineEvents,

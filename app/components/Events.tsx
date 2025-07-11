@@ -6,34 +6,57 @@ import GlassCard from './GlassCard';
 import EventCard from './EventCard';
 import EventModal from './EventModal';
 import { Event, EventFormData } from '../lib/types';
+import { eventService } from '../lib/eventService';
 import { IoCalendarOutline } from 'react-icons/io5';
 
 export function Events() {
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [migrating, setMigrating] = useState(false);
 
-  // Load events from localStorage on mount
+  // Load events from API on mount
   useEffect(() => {
-    const savedEvents = localStorage.getItem('journaline-events');
-    if (savedEvents) {
-      try {
-        const parsedEvents = JSON.parse(savedEvents);
-        setEvents(parsedEvents);
-      } catch (error) {
-        console.error('Error parsing saved events:', error);
-      }
-    }
+    loadEvents();
   }, []);
 
-  // Save events to localStorage whenever events change
-  useEffect(() => {
-    localStorage.setItem('journaline-events', JSON.stringify(events));
+  const loadEvents = async () => {
+    setLoading(true);
+    setError(null);
     
-    // Dispatch custom event to notify timeline hook of updates
-    const event = new CustomEvent('events-updated');
-    window.dispatchEvent(event);
-  }, [events]);
+    try {
+      // Check for localStorage data and migrate if needed
+      const localEvents = eventService.getEventsFromLocalStorage();
+      if (localEvents.length > 0) {
+        setMigrating(true);
+        const migrationResult = await eventService.migrateFromLocalStorage();
+        setMigrating(false);
+        
+        if (migrationResult.error) {
+          console.error('Migration error:', migrationResult.error);
+        } else if (migrationResult.data) {
+          console.log(`Migration completed: ${migrationResult.data.migrated} events migrated, ${migrationResult.data.failed} failed`);
+        }
+      }
+
+      // Load events from API
+      const result = await eventService.getAllEvents();
+      if (result.error) {
+        setError(result.error);
+        setEvents([]);
+      } else if (result.data) {
+        setEvents(result.data);
+      }
+    } catch (err) {
+      console.error('Error loading events:', err);
+      setError('Failed to load events');
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Listen for calendar date selection
   useEffect(() => {
@@ -48,30 +71,72 @@ export function Events() {
     };
   }, []);
 
-  const handleSaveEvent = (eventData: EventFormData) => {
+  const handleSaveEvent = async (eventData: EventFormData) => {
     if (!selectedDate) return;
 
-    const newEvent: Event = {
-      id: crypto.randomUUID(),
-      title: eventData.title,
-      description: eventData.description,
-      date: selectedDate.toISOString(),
-      addToTimeline: eventData.addToTimeline,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    try {
+      const result = await eventService.createEvent({
+        ...eventData,
+        date: selectedDate.toISOString(),
+      });
 
-    setEvents(prev => [...prev, newEvent]);
+      if (result.error) {
+        setError(result.error);
+      } else if (result.data) {
+        setEvents(prev => [result.data!, ...prev]);
+        
+        // Dispatch custom event to notify timeline hook of updates
+        const event = new CustomEvent('events-updated');
+        window.dispatchEvent(event);
+      }
+    } catch (err) {
+      console.error('Error creating event:', err);
+      setError('Failed to create event');
+    }
   };
 
-  const handleEditEvent = (updatedEvent: Event) => {
-    setEvents(prev => prev.map(event => 
-      event.id === updatedEvent.id ? updatedEvent : event
-    ));
+  const handleEditEvent = async (updatedEvent: Event) => {
+    try {
+      const result = await eventService.updateEvent(updatedEvent.id, {
+        title: updatedEvent.title,
+        description: updatedEvent.description,
+        addToTimeline: updatedEvent.addToTimeline,
+      });
+
+      if (result.error) {
+        setError(result.error);
+      } else if (result.data) {
+        setEvents(prev => prev.map(event => 
+          event.id === updatedEvent.id ? result.data! : event
+        ));
+        
+        // Dispatch custom event to notify timeline hook of updates
+        const event = new CustomEvent('events-updated');
+        window.dispatchEvent(event);
+      }
+    } catch (err) {
+      console.error('Error updating event:', err);
+      setError('Failed to update event');
+    }
   };
 
-  const handleDeleteEvent = (eventId: string) => {
-    setEvents(prev => prev.filter(event => event.id !== eventId));
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      const result = await eventService.deleteEvent(eventId);
+
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setEvents(prev => prev.filter(event => event.id !== eventId));
+        
+        // Dispatch custom event to notify timeline hook of updates
+        const event = new CustomEvent('events-updated');
+        window.dispatchEvent(event);
+      }
+    } catch (err) {
+      console.error('Error deleting event:', err);
+      setError('Failed to delete event');
+    }
   };
 
   const handleCloseModal = () => {
@@ -105,7 +170,33 @@ export function Events() {
             </p>
           </div>
 
-          {events.length === 0 ? (
+          {loading || migrating ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <h3 className="text-lg font-medium text-text-primary mb-2">
+                {migrating ? 'Migrating your data...' : 'Loading events...'}
+              </h3>
+              <p className="text-text-secondary">
+                {migrating ? 'Moving your events to the cloud.' : 'Please wait while we fetch your events.'}
+              </p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <IoCalendarOutline className="w-16 h-16 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-red-600 mb-2">
+                Error loading events
+              </h3>
+              <p className="text-text-secondary mb-4">
+                {error}
+              </p>
+              <button
+                onClick={loadEvents}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : events.length === 0 ? (
             <div className="text-center py-12">
               <IoCalendarOutline className="w-16 h-16 text-text-muted mx-auto mb-4" />
               <h3 className="text-lg font-medium text-text-primary mb-2">

@@ -14,10 +14,11 @@ interface EventCardProps {
   event: Event;
   onEdit?: (event: Event) => void;
   onDelete?: (eventId: string) => void;
+  showTimelineBadge?: boolean;
   className?: string;
 }
 
-export function EventCard({ event, onEdit, onDelete, className }: EventCardProps) {
+export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, className }: EventCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     title: event.title,
@@ -70,6 +71,15 @@ export function EventCard({ event, onEdit, onDelete, className }: EventCardProps
     }
   };
 
+  const handleTimelineToggle = (checked: boolean) => {
+    const updatedEvent: Event = {
+      ...event,
+      addToTimeline: checked,
+      updatedAt: new Date().toISOString(),
+    };
+    onEdit?.(updatedEvent);
+  };
+
   // Handle escape key to cancel editing
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -87,19 +97,32 @@ export function EventCard({ event, onEdit, onDelete, className }: EventCardProps
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
           {isEditing ? (
-            <input
-              type="text"
-              value={editData.title}
-              onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
-              className={cn(
-                'w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30',
-                'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
-                'text-text-primary text-lg font-semibold',
-                'focus:outline-none focus:ring-2 focus:ring-blue-500/50',
-                'transition-all duration-200 hover:bg-white/80 dark:hover:bg-gray-800/80'
-              )}
-              autoFocus
-            />
+            <div className="space-y-1">
+              <input
+                type="text"
+                value={editData.title}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.length <= 35) {
+                    setEditData(prev => ({ ...prev, title: value }));
+                  }
+                }}
+                className={cn(
+                  'w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30',
+                  'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
+                  'text-text-primary text-lg font-semibold',
+                  'focus:outline-none focus:ring-2 focus:ring-blue-500/50',
+                  'transition-all duration-200 hover:bg-white/80 dark:hover:bg-gray-800/80'
+                )}
+                autoFocus
+                placeholder="Event title..."
+              />
+              <div className="flex justify-end">
+                <span className="text-xs text-text-muted">
+                  {editData.title.length}/35
+                </span>
+              </div>
+            </div>
           ) : (
             <h3 className="text-lg font-semibold text-text-primary mb-1">
               {event.title}
@@ -111,7 +134,7 @@ export function EventCard({ event, onEdit, onDelete, className }: EventCardProps
         </div>
         
         <div className="flex items-center space-x-2">
-          {event.addToTimeline && (
+          {showTimelineBadge && event.addToTimeline && !isEditing && (
             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
               <IoTimeOutline className="w-3 h-3 mr-1" />
               Timeline
@@ -171,18 +194,32 @@ export function EventCard({ event, onEdit, onDelete, className }: EventCardProps
       <div className="mt-3">
         {isEditing ? (
           <div className="space-y-2">
-            <textarea
-              value={editData.description}
-              onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
-              className={cn(
-                'w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30',
-                'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
-                'text-text-primary resize-none',
-                'focus:outline-none focus:ring-2 focus:ring-blue-500/50',
-                'transition-all duration-200 hover:bg-white/80 dark:hover:bg-gray-800/80'
-              )}
-              rows={3}
-            />
+            <div className="space-y-1">
+              <textarea
+                value={editData.description}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.length <= 250) {
+                    setEditData(prev => ({ ...prev, description: value }));
+                  }
+                }}
+                className={cn(
+                  'w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30',
+                  'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
+                  'text-text-primary resize-none',
+                  'focus:outline-none focus:ring-2 focus:ring-blue-500/50',
+                  'transition-all duration-200 hover:bg-white/80 dark:hover:bg-gray-800/80'
+                )}
+                rows={3}
+                placeholder="Event description..."
+              />
+              <div className="flex justify-end">
+                <span className="text-xs text-text-muted">
+                  {editData.description.length}/250
+                </span>
+              </div>
+            </div>
+            
             <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
@@ -197,30 +234,46 @@ export function EventCard({ event, onEdit, onDelete, className }: EventCardProps
             </div>
           </div>
         ) : (
-                     <div className="prose prose-sm max-w-none dark:prose-invert">
-             <ReactMarkdown
-               components={{
-                // Custom styling for markdown elements
-                p: ({ children }) => <p className="text-text-secondary mb-2 last:mb-0">{children}</p>,
-                strong: ({ children }) => <strong className="text-text-primary font-semibold">{children}</strong>,
-                em: ({ children }) => <em className="text-text-secondary italic">{children}</em>,
-                ul: ({ children }) => <ul className="text-text-secondary ml-4 list-disc">{children}</ul>,
-                ol: ({ children }) => <ol className="text-text-secondary ml-4 list-decimal">{children}</ol>,
-                li: ({ children }) => <li className="text-text-secondary mb-1">{children}</li>,
-                code: ({ children }) => (
-                  <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm font-mono text-text-primary">
-                    {children}
-                  </code>
-                ),
-                blockquote: ({ children }) => (
-                  <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-text-muted">
-                    {children}
-                  </blockquote>
-                ),
-              }}
-            >
-              {event.description}
-            </ReactMarkdown>
+          <div className="space-y-3">
+            <div className="prose prose-sm max-w-none dark:prose-invert">
+              <ReactMarkdown
+                components={{
+                  // Custom styling for markdown elements
+                  p: ({ children }) => <p className="text-text-secondary mb-2 last:mb-0">{children}</p>,
+                  strong: ({ children }) => <strong className="text-text-primary font-semibold">{children}</strong>,
+                  em: ({ children }) => <em className="text-text-secondary italic">{children}</em>,
+                  ul: ({ children }) => <ul className="text-text-secondary ml-4 list-disc">{children}</ul>,
+                  ol: ({ children }) => <ol className="text-text-secondary ml-4 list-decimal">{children}</ol>,
+                  li: ({ children }) => <li className="text-text-secondary mb-1">{children}</li>,
+                  code: ({ children }) => (
+                    <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm font-mono text-text-primary">
+                      {children}
+                    </code>
+                  ),
+                  blockquote: ({ children }) => (
+                    <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-text-muted">
+                      {children}
+                    </blockquote>
+                  ),
+                }}
+              >
+                {event.description}
+              </ReactMarkdown>
+            </div>
+            
+            {/* Always visible timeline checkbox */}
+            <div className="flex items-center space-x-2 pt-2 border-t border-gray-200/30 dark:border-gray-700/30">
+              <input
+                type="checkbox"
+                id={`timeline-always-${event.id}`}
+                checked={event.addToTimeline}
+                onChange={(e) => handleTimelineToggle(e.target.checked)}
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+              />
+              <label htmlFor={`timeline-always-${event.id}`} className="text-sm text-text-primary">
+                Add to timeline
+              </label>
+            </div>
           </div>
         )}
       </div>
