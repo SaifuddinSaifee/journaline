@@ -1,246 +1,244 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { IoTimeOutline, IoCalendarOutline, IoRefreshOutline } from 'react-icons/io5';
-import { format } from 'date-fns';
-import { useTimelineEvents } from '../lib/hooks';
-import { Event } from '../lib/types';
-import { eventService } from '../lib/eventService';
-import GlassCard from './GlassCard';
-import TimelineCard from './TimelineCard';
-import DateRangeSelector, { DateRange } from './DateRangeSelector';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
+import {
+  IoTimeOutline,
+  IoCalendarOutline,
+  IoRefreshOutline,
+} from "react-icons/io5";
+import { format } from "date-fns";
+import { useTimelineEvents } from "../lib/hooks";
+import { Event } from "../lib/types";
+import { eventService } from "../lib/eventService";
+import GlassCard from "./GlassCard";
+import TimelineCard from "./TimelineCard";
+import DateRangeSelector, { DateRange } from "./DateRangeSelector";
 
 interface DragState {
   isDragging: boolean;
-  eventId: string | null;
+  groupId: string | null;
   startY: number;
   startScrollY: number;
   startCustomY: number;
   currentY: number;
 }
 
-const DEFAULT_CARD_SPACING = 250; // Default spacing between cards
-const POSITION_STORAGE_KEY = 'timeline-positions';
+const DEFAULT_GROUP_SPACING = 500; // Default spacing between date groups
+const VERTICAL_PADDING = 50; // Vertical padding between groups
+const GROUP_POSITION_STORAGE_KEY = "timeline-group-positions";
+const GROUP_ORDER_STORAGE_KEY = "timeline-group-order";
 
 export function Timeline() {
-  const [dateRange, setDateRange] = useState<DateRange>({ startDate: null, endDate: null });
+  const [dateRange, setDateRange] = useState<DateRange>({
+    startDate: null,
+    endDate: null,
+  });
   const { events, loading, error } = useTimelineEvents({ dateRange });
   const [timelineEvents, setTimelineEvents] = useState<Event[]>([]);
   
-  // Position management
-  const [eventPositions, setEventPositions] = useState<Record<string, number>>({});
+  // State for visual order and positions of groups
+  const [groupOrder, setGroupOrder] = useState<string[]>([]);
+  const [groupPositions, setGroupPositions] = useState<Record<string, number>>(
+    {}
+  );
   const [dragState, setDragState] = useState<DragState>({
     isDragging: false,
-    eventId: null,
+    groupId: null,
     startY: 0,
     startScrollY: 0,
     startCustomY: 0,
-    currentY: 0
+    currentY: 0,
   });
   const [isResetting, setIsResetting] = useState(false);
+  const [isInteracting, setIsInteracting] = useState(false);
   
   const timelineRef = useRef<HTMLDivElement>(null);
+  const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Load positions from localStorage on mount
+  // Group events by date, creating a map
+  const groupsByDate = useMemo(() => {
+    if (!timelineEvents) return new Map();
+    
+    const groups: Record<string, Event[]> = timelineEvents.reduce(
+      (acc, event) => {
+        const eventDate = format(new Date(event.date), 'yyyy-MM-dd');
+        if (!acc[eventDate]) {
+          acc[eventDate] = [];
+        }
+        acc[eventDate].push(event);
+        return acc;
+      },
+      {} as Record<string, Event[]>
+    );
+
+    return new Map(Object.entries(groups).map(([date, events]) => [date, events]));
+  }, [timelineEvents]);
+
+  // Create the ordered array of groups for rendering
+  const orderedGroups = useMemo(() => {
+    return groupOrder
+      .map(date => {
+        const events = groupsByDate.get(date);
+        if (!events) return null;
+        return { date, events };
+      })
+      .filter(Boolean) as { date: string, events: Event[] }[];
+  }, [groupOrder, groupsByDate]);
+
+  // Load positions and order from localStorage on mount
   useEffect(() => {
-    const savedPositions = localStorage.getItem(POSITION_STORAGE_KEY);
+    const savedPositions = localStorage.getItem(GROUP_POSITION_STORAGE_KEY);
+    const savedOrder = localStorage.getItem(GROUP_ORDER_STORAGE_KEY);
+    
     if (savedPositions) {
       try {
-        setEventPositions(JSON.parse(savedPositions));
+        setGroupPositions(JSON.parse(savedPositions));
       } catch (err) {
-        console.error('Error loading timeline positions:', err);
+        console.error('Error loading timeline group positions:', err);
+      }
+    }
+    if (savedOrder) {
+      try {
+        setGroupOrder(JSON.parse(savedOrder));
+      } catch (err) {
+        console.error('Error loading timeline group order:', err);
       }
     }
   }, []);
 
-  // Save positions to localStorage when they change
+  // Save positions and order to localStorage when they change
   useEffect(() => {
-    if (Object.keys(eventPositions).length > 0) {
-      localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(eventPositions));
+    if (Object.keys(groupPositions).length > 0) {
+      localStorage.setItem(
+        GROUP_POSITION_STORAGE_KEY,
+        JSON.stringify(groupPositions)
+      );
     }
-  }, [eventPositions]);
-
-  // Keep local state in sync with hook
+    if (groupOrder.length > 0) {
+      localStorage.setItem(GROUP_ORDER_STORAGE_KEY, JSON.stringify(groupOrder));
+    }
+  }, [groupPositions, groupOrder]);
+  
+  // Sync local state with hook and initialize order
   useEffect(() => {
     setTimelineEvents(events);
-  }, [events]);
+    
+    // Initialize order if not already loaded from storage or if events changed
+    const newChronologicalOrder = Array.from(groupsByDate.keys())
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
-  // Calculate default positions for events that don't have custom positions
-  const getEventPosition = useCallback((eventId: string, index: number) => {
-    if (eventPositions[eventId] !== undefined) {
-      return eventPositions[eventId];
+    const currentOrderSet = new Set(groupOrder);
+    const newOrderSet = new Set(newChronologicalOrder);
+
+    if (groupOrder.length === 0 || currentOrderSet.size !== newOrderSet.size) {
+       setGroupOrder(newChronologicalOrder);
     }
-    // Default spacing: Use consistent spacing for better layout
-    return index * DEFAULT_CARD_SPACING + 100; // Start with some top padding
-  }, [eventPositions]);
+  }, [events, groupsByDate]);
 
-  // Enhanced collision detection that considers actual visual positioning and card dimensions
-  const checkCollisions = useCallback((eventId: string, newY: number, eventList: Event[]) => {
-    const currentEventIndex = eventList.findIndex(e => e.id === eventId);
-    if (currentEventIndex === -1) return newY;
-
-    const currentEvent = eventList[currentEventIndex];
-    const currentEventDate = new Date(currentEvent.date).getTime();
-    
-    let adjustedY = Math.max(50, newY); // Ensure minimum top position
-    
-    // Create a list of all other events with their positions
-    const otherEvents = eventList
-      .map((event, index) => ({
-        event,
-        index,
-        y: getEventPosition(event.id, index),
-        date: new Date(event.date).getTime()
-      }))
-      .filter(item => item.event.id !== eventId);
-    
-    // Sort events by their current Y position to determine visual order
-    otherEvents.sort((a, b) => a.y - b.y);
-    
-    // Determine visual sides based on current positions
-    const getVisualSide = (itemY: number, visualIndex: number) => {
-      // Determine left/right based on the alternating pattern from current visual order
-      return visualIndex % 2 === 0 ? 'left' : 'right';
-    };
-    
-    // Find where the current event would fit in the visual order
-    let currentVisualIndex = 0;
-    for (let i = 0; i < otherEvents.length; i++) {
-      if (adjustedY > otherEvents[i].y) {
-        currentVisualIndex = i + 1;
-      } else {
-        break;
-      }
+  // Calculate default positions for groups that don't have one
+  const getGroupPosition = useCallback((date: string, index: number) => {
+    if (groupPositions[date] !== undefined) {
+      return groupPositions[date];
     }
-    
-    const currentVisualSide = getVisualSide(adjustedY, currentVisualIndex);
-    
-    // Check for collisions with each other event
-    for (let i = 0; i < otherEvents.length; i++) {
-      const otherItem = otherEvents[i];
-      const otherVisualSide = getVisualSide(otherItem.y, otherEvents.indexOf(otherItem));
-      
-      const distance = Math.abs(adjustedY - otherItem.y);
-      
-      // Different collision rules based on relationship between events
-      const sameDate = currentEventDate === otherItem.date;
-      const sameSide = currentVisualSide === otherVisualSide;
-      
-      let minDistance = 0;
-      
-      if (sameDate) {
-        // Same date events: minimal spacing regardless of side
-        minDistance = 80; // Reduced spacing for same-date events
-      } else if (sameSide) {
-        // Different dates, same side: larger spacing to prevent card overlap
-        minDistance = 180; // Ensure cards don't visually overlap
-      } else {
-        // Different dates, different sides: minimal spacing since cards won't overlap horizontally
-        minDistance = 120; // Small spacing to prevent pills from being too close
-      }
-      
-      // Apply collision adjustment if too close
-      if (distance < minDistance) {
-        if (adjustedY > otherItem.y) {
-          adjustedY = otherItem.y + minDistance;
-        } else {
-          adjustedY = otherItem.y - minDistance;
-          adjustedY = Math.max(50, adjustedY); // Ensure minimum top position
-        }
-      }
+    // This fallback will be used for newly added groups
+    let calculatedY = 100;
+    for (let i = 0; i < index; i++) {
+        const prevGroupDate = groupOrder[i];
+        const prevGroupHeight = groupRefs.current[prevGroupDate]?.offsetHeight || DEFAULT_GROUP_SPACING;
+        calculatedY += prevGroupHeight + VERTICAL_PADDING;
     }
+    return calculatedY;
+  }, [groupPositions, groupOrder]);
 
-    return adjustedY;
-  }, [getEventPosition]);
-
-  // Mouse event handlers for dragging
-  const handleMouseDown = useCallback((e: React.MouseEvent, eventId: string) => {
+  // Mouse event handlers for dragging groups
+  const handleMouseDown = useCallback((e: React.MouseEvent, groupId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    const currentY = getEventPosition(eventId, timelineEvents.findIndex(ev => ev.id === eventId));
-    
+    setIsInteracting(true);
+    const groupIndex = orderedGroups.findIndex(g => g.date === groupId);
+    const currentY = getGroupPosition(groupId, groupIndex);
     setDragState({
       isDragging: true,
-      eventId,
+      groupId,
       startY: e.clientY,
       startScrollY: window.scrollY,
       startCustomY: currentY,
-      currentY: currentY
+      currentY: currentY,
     });
-  }, [getEventPosition, timelineEvents]);
+  }, [getGroupPosition, orderedGroups]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!dragState.isDragging || !dragState.eventId) return;
-
-    const scrollDelta = window.scrollY - dragState.startScrollY;
-    const deltaY = e.clientY - dragState.startY + scrollDelta;
+    if (!dragState.isDragging || !dragState.groupId) return;
+    const deltaY = e.clientY - dragState.startY;
     const newY = dragState.startCustomY + deltaY;
-    const adjustedY = checkCollisions(dragState.eventId, newY, timelineEvents);
-    
-    setDragState(prev => ({ ...prev, currentY: adjustedY }));
-    setEventPositions(prev => ({
-      ...prev,
-      [dragState.eventId!]: adjustedY
-    }));
-  }, [dragState, checkCollisions, timelineEvents]);
+    setDragState(prev => ({ ...prev, currentY: newY }));
+    setGroupPositions(prev => ({ ...prev, [dragState.groupId!]: newY }));
+  }, [dragState]);
 
   const handleMouseUp = useCallback(() => {
-    setDragState({
-      isDragging: false,
-      eventId: null,
-      startY: 0,
-      startScrollY: 0,
-      startCustomY: 0,
-      currentY: 0
+    if (!dragState.groupId) return;
+
+    // Create a list of groups with their final positions
+    const finalLayout = groupOrder.map(date => ({
+      date,
+      y: groupPositions[date] || 0
+    })).sort((a, b) => a.y - b.y);
+
+    const newOrder = finalLayout.map(g => g.date);
+
+    // Recalculate all positions based on the new order to "settle" them
+    const newPositions: Record<string, number> = {};
+    let currentY = 100;
+    newOrder.forEach(date => {
+      newPositions[date] = currentY;
+      const groupHeight = groupRefs.current[date]?.offsetHeight || DEFAULT_GROUP_SPACING;
+      currentY += groupHeight + VERTICAL_PADDING;
     });
-  }, []);
+
+    setGroupOrder(newOrder);
+    setGroupPositions(newPositions);
+    
+    setDragState({ isDragging: false, groupId: null, startY: 0, startScrollY: 0, startCustomY: 0, currentY: 0 });
+    setTimeout(() => setIsInteracting(false), 500); // Allow time for CSS transitions
+  }, [dragState.groupId, groupOrder, groupPositions]);
 
   // Touch event handlers for mobile support
-  const handleTouchStart = useCallback((e: React.TouchEvent, eventId: string) => {
+  const handleTouchStart = useCallback((e: React.TouchEvent, groupId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    
+    setIsInteracting(true);
     const touch = e.touches[0];
-    const currentY = getEventPosition(eventId, timelineEvents.findIndex(ev => ev.id === eventId));
-    
+    const groupIndex = orderedGroups.findIndex(g => g.date === groupId);
+    const currentY = getGroupPosition(groupId, groupIndex);
     setDragState({
       isDragging: true,
-      eventId,
+      groupId,
       startY: touch.clientY,
       startScrollY: window.scrollY,
       startCustomY: currentY,
-      currentY: currentY
+      currentY: currentY,
     });
-  }, [getEventPosition, timelineEvents]);
+  }, [getGroupPosition, orderedGroups]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (!dragState.isDragging || !dragState.eventId) return;
-    
+    if (!dragState.isDragging || !dragState.groupId) return;
     e.preventDefault();
     const touch = e.touches[0];
-    const scrollDelta = window.scrollY - dragState.startScrollY;
-    const deltaY = touch.clientY - dragState.startY + scrollDelta;
+    const deltaY = touch.clientY - dragState.startY;
     const newY = dragState.startCustomY + deltaY;
-    const adjustedY = checkCollisions(dragState.eventId, newY, timelineEvents);
-    
-    setDragState(prev => ({ ...prev, currentY: adjustedY }));
-    setEventPositions(prev => ({
-      ...prev,
-      [dragState.eventId!]: adjustedY
-    }));
-  }, [dragState, checkCollisions, timelineEvents]);
+    setDragState(prev => ({ ...prev, currentY: newY }));
+    setGroupPositions(prev => ({ ...prev, [dragState.groupId!]: newY }));
+  }, [dragState]);
 
   const handleTouchEnd = useCallback(() => {
-    setDragState({
-      isDragging: false,
-      eventId: null,
-      startY: 0,
-      startScrollY: 0,
-      startCustomY: 0,
-      currentY: 0
-    });
-  }, []);
+    handleMouseUp(); // Reuse the same logic
+  }, [handleMouseUp]);
 
   // Add global event listeners for drag operations
   useEffect(() => {
@@ -249,7 +247,6 @@ export function Timeline() {
       document.addEventListener('mouseup', handleMouseUp);
       document.addEventListener('touchmove', handleTouchMove, { passive: false });
       document.addEventListener('touchend', handleTouchEnd);
-      
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
@@ -270,12 +267,11 @@ export function Timeline() {
       if (result.error) {
         console.error('Error updating event:', result.error);
       } else if (result.data) {
-        // Update local state
-        setTimelineEvents(prev => prev.map(event => 
-          event.id === updatedEvent.id ? result.data! : event
-        ));
-        
-        // Dispatch custom event to notify other components
+        setTimelineEvents(prev =>
+          prev.map(event =>
+            event.id === updatedEvent.id ? result.data! : event
+          )
+        );
         const event = new CustomEvent('events-updated');
         window.dispatchEvent(event);
       }
@@ -287,21 +283,12 @@ export function Timeline() {
   const handleDeleteEvent = async (eventId: string) => {
     try {
       const result = await eventService.deleteEvent(eventId);
-
       if (result.error) {
         console.error('Error deleting event:', result.error);
       } else {
-        // Update local state
-        setTimelineEvents(prev => prev.filter(event => event.id !== eventId));
-        
-        // Remove position data for deleted event
-        setEventPositions(prev => {
-          const newPositions = { ...prev };
-          delete newPositions[eventId];
-          return newPositions;
-        });
-        
-        // Dispatch custom event to notify other components
+        setTimelineEvents(prev =>
+          prev.filter(event => event.id !== eventId)
+        );
         const event = new CustomEvent('events-updated');
         window.dispatchEvent(event);
       }
@@ -316,35 +303,33 @@ export function Timeline() {
 
   const handleResetPositions = useCallback(() => {
     setIsResetting(true);
-    
-    // Brief delay for visual feedback
     setTimeout(() => {
-      // Clear all custom positions
-      setEventPositions({});
-      
-      // Clear localStorage
-      localStorage.removeItem(POSITION_STORAGE_KEY);
-      
-      // Reset drag state if currently dragging
-      setDragState({
-        isDragging: false,
-        eventId: null,
-        startY: 0,
-        startScrollY: 0,
-        startCustomY: 0,
-        currentY: 0
-      });
-      
-      setIsResetting(false);
-      console.log('Timeline positions reset to default chronological order');
-    }, 150);
-  }, []);
+      // Clear stored positions and order
+      setGroupPositions({});
+      localStorage.removeItem(GROUP_POSITION_STORAGE_KEY);
+      localStorage.removeItem(GROUP_ORDER_STORAGE_KEY);
 
-  // Calculate timeline height dynamically
+      // Reset order to chronological
+      const chronologicalOrder = Array.from(groupsByDate.keys())
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+      setGroupOrder(chronologicalOrder);
+      
+      setDragState({ isDragging: false, groupId: null, startY: 0, startScrollY: 0, startCustomY: 0, currentY: 0 });
+      setIsResetting(false);
+      console.log('Timeline positions and order reset to default');
+    }, 150);
+  }, [groupsByDate]);
+
   const timelineHeight = Math.max(
-    600, // Minimum height
-    timelineEvents.length > 0 
-      ? Math.max(...timelineEvents.map((_, index) => getEventPosition(timelineEvents[index].id, index))) + 300
+    600,
+    orderedGroups.length > 0
+      ? Math.max(
+          ...orderedGroups.map(
+            (group, index) =>
+              getGroupPosition(group.date, index) +
+              (groupRefs.current[group.date]?.offsetHeight || 0)
+          )
+        ) + 300
       : 600
   );
 
@@ -369,7 +354,9 @@ export function Timeline() {
         <GlassCard variant="default" className="min-h-96">
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
-              <p className="text-red-600 dark:text-red-400 mb-2">Error loading timeline</p>
+              <p className="text-red-600 dark:text-red-400 mb-2">
+                Error loading timeline
+              </p>
               <p className="text-text-secondary text-sm">{error}</p>
             </div>
           </div>
@@ -387,36 +374,40 @@ export function Timeline() {
               Timeline
             </h2>
             <p className="text-text-secondary text-sm sm:text-base">
-              Your chronological journey through events marked for timeline display. Drag date pills to reposition events.
+              Your chronological journey. Drag date pills to re-order event
+              groups.
             </p>
           </div>
 
-          {/* Date Range Selector */}
           <div className="mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-2">
                 <IoTimeOutline className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                 <span className="text-sm font-medium text-text-secondary">
-                  {timelineEvents.length} event{timelineEvents.length !== 1 ? 's' : ''} 
-                  {dateRange.startDate && dateRange.endDate ? ' in selected range' : ' in timeline'}
+                  {timelineEvents.length} event
+                  {timelineEvents.length !== 1 ? 's' : ''} across{' '}
+                  {orderedGroups.length} day
+                  {orderedGroups.length !== 1 ? 's' : ''}
+                  {dateRange.startDate && dateRange.endDate
+                    ? ' in selected range'
+                    : ''}
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleResetPositions}
-                  disabled={isResetting || Object.keys(eventPositions).length === 0}
-                  className={`
-                    flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all duration-200
-                    ${isResetting || Object.keys(eventPositions).length === 0
+                  disabled={isResetting}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                    isResetting
                       ? 'text-gray-400 dark:text-gray-500 bg-gray-100/50 dark:bg-gray-700/50 border-gray-200/30 dark:border-gray-600/30 cursor-not-allowed'
                       : 'text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-gray-200/50 dark:border-gray-700/50 hover:border-blue-300/50 dark:hover:border-blue-600/50 hover:shadow-md cursor-pointer'
-                    }
-                    rounded-lg border
-                  `}
-                  title={Object.keys(eventPositions).length === 0 ? "No custom positions to reset" : "Reset all pill positions to default chronological order"}
+                  } rounded-lg border`}
+                  title={'Reset all pill positions and order to default'}
                 >
-                  <IoRefreshOutline className={`w-4 h-4 ${isResetting ? 'animate-spin' : ''}`} />
-                  {isResetting ? 'Resetting...' : 'Reset Positions'}
+                  <IoRefreshOutline
+                    className={`w-4 h-4 ${isResetting ? 'animate-spin' : ''}`}
+                  />
+                  {isResetting ? 'Resetting...' : 'Reset Layout'}
                 </button>
                 <DateRangeSelector
                   dateRange={dateRange}
@@ -426,134 +417,127 @@ export function Timeline() {
             </div>
           </div>
 
-          {timelineEvents.length === 0 ? (
+          {orderedGroups.length === 0 ? (
             <div className="text-center py-12">
               <IoCalendarOutline className="w-16 h-16 text-text-muted mx-auto mb-4" />
               <h3 className="text-lg font-medium text-text-primary mb-2">
-                {dateRange.startDate && dateRange.endDate ? 'No events in selected range' : 'No timeline events yet'}
+                {dateRange.startDate && dateRange.endDate
+                  ? 'No events in selected range'
+                  : 'No timeline events yet'}
               </h3>
               <p className="text-text-secondary mb-4">
-                {dateRange.startDate && dateRange.endDate 
+                {dateRange.startDate && dateRange.endDate
                   ? 'Try adjusting your date range or create new events in this period.'
-                  : 'Create journal entries and mark them with "Add to timeline" to see them here.'
-                }
+                  : 'Create journal entries and mark them with "Add to timeline" to see them here.'}
               </p>
               <p className="text-text-muted text-sm">
-                Your timeline will display events chronologically from newest to oldest.
+                Your timeline will display events chronologically by default.
               </p>
             </div>
           ) : (
             <div className="space-y-2">
-              {/* Timeline Container */}
-              <div 
-                ref={timelineRef} 
-                className="relative" 
+              <div
+                ref={timelineRef}
+                className="relative"
                 style={{ minHeight: `${timelineHeight}px` }}
               >
-                {/* Center Timeline Line - Hidden on mobile, visible on desktop */}
                 <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-blue-500 to-blue-300 dark:from-blue-400 dark:to-blue-600 opacity-60" />
-                
-                {/* Mobile Timeline Line - Visible on mobile only */}
                 <div className="md:hidden absolute left-4 w-0.5 h-full bg-gradient-to-b from-blue-500 to-blue-300 dark:from-blue-400 dark:to-blue-600 opacity-60" />
                 
-                {/* Timeline Events */}
                 <div className="relative">
-                  {timelineEvents.map((event, index) => {
+                  {orderedGroups.map((group, index) => {
                     const isEven = index % 2 === 0;
-                    const eventDate = new Date(event.date);
-                    const eventY = getEventPosition(event.id, index);
-                    const isDraggingThis = dragState.isDragging && dragState.eventId === event.id;
-                    const displayY = isDraggingThis ? dragState.currentY : eventY;
+                    const groupDate = new Date(group.date);
+                    const groupY = getGroupPosition(group.date, index);
+                    const isDraggingThis =
+                      dragState.isDragging && dragState.groupId === group.date;
+                    const displayY = isDraggingThis
+                      ? dragState.currentY
+                      : groupY;
                     
                     return (
-                      <div 
-                        key={event.id} 
-                        className="absolute w-full transition-all duration-150"
-                        style={{ 
+                      <div
+                        key={group.date}
+                        ref={el => {
+                          groupRefs.current[group.date] = el;
+                        }}
+                        className="absolute w-full"
+                        style={{
                           top: `${displayY}px`,
-                          transition: isDraggingThis ? 'none' : 'top 0.15s ease-out'
+                          transition: isInteracting ? 'none' : 'top 0.5s ease-in-out',
+                          zIndex: isDraggingThis ? 30 : 10
                         }}
                       >
-                        {/* Center Date Marker - Desktop */}
-                        <div className="hidden md:block absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-                          {/* Date Label */}
-                          <div 
-                            className={`
-                              bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700
-                              cursor-grab active:cursor-grabbing select-none
-                              transition-all duration-200
-                              ${isDraggingThis 
-                                ? 'scale-110 shadow-lg ring-2 ring-blue-500/50 cursor-grabbing' 
+                        <div className="hidden md:block absolute left-1/2 top-4 transform -translate-x-1/2 z-20">
+                          <div
+                            className={`bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 cursor-grab active:cursor-grabbing select-none transition-all duration-200 ${
+                              isDraggingThis
+                                ? 'scale-110 shadow-lg ring-2 ring-blue-500/50 cursor-grabbing'
                                 : 'hover:shadow-lg hover:scale-105'
-                              }
-                            `}
-                            onMouseDown={(e) => handleMouseDown(e, event.id)}
-                            onTouchStart={(e) => handleTouchStart(e, event.id)}
-                            title="Drag to reposition"
+                            }`}
+                            onMouseDown={e => handleMouseDown(e, group.date)}
+                            onTouchStart={e =>
+                              handleTouchStart(e, group.date)
+                            }
+                            title="Drag to re-order date group"
                           >
                             <span className="text-xs font-medium text-blue-600 dark:text-blue-400 pointer-events-none">
-                              {format(eventDate, 'MMM d')}
+                              {format(groupDate, 'MMM d, yyyy')}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="md:hidden absolute left-2 top-4 transform -translate-x-1/2 z-20">
+                          <div
+                            className={`bg-white dark:bg-gray-800 px-2 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 cursor-grab active:cursor-grabbing select-none transition-all duration-200 ${
+                              isDraggingThis
+                                ? 'scale-110 shadow-lg ring-2 ring-blue-500/50 cursor-grabbing'
+                                : 'hover:shadow-lg hover:scale-105'
+                            }`}
+                            onMouseDown={e => handleMouseDown(e, group.date)}
+                            onTouchStart={e =>
+                              handleTouchStart(e, group.date)
+                            }
+                            title="Drag to re-order date group"
+                          >
+                            <span className="text-xs font-medium text-blue-600 dark:text-blue-400 pointer-events-none">
+                              {format(groupDate, 'MMM d')}
                             </span>
                           </div>
                         </div>
                         
-                        {/* Mobile Date Indicator */}
-                        <div className="md:hidden absolute left-2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-                          <div 
-                            className={`
-                              bg-white dark:bg-gray-800 px-2 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700
-                              cursor-grab active:cursor-grabbing select-none
-                              transition-all duration-200
-                              ${isDraggingThis 
-                                ? 'scale-110 shadow-lg ring-2 ring-blue-500/50 cursor-grabbing' 
-                                : 'hover:shadow-lg hover:scale-105'
-                              }
-                            `}
-                            onMouseDown={(e) => handleMouseDown(e, event.id)}
-                            onTouchStart={(e) => handleTouchStart(e, event.id)}
-                            title="Drag to reposition"
+                        <div className="md:hidden absolute left-8 top-6 transform -translate-y-1/2 w-6 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-10" />
+
+                        <div
+                          className={`md:flex ${
+                            isEven ? 'md:justify-start' : 'md:justify-end'
+                          } ml-14 md:ml-0`}
+                        >
+                          <div
+                            className={`w-full md:max-w-md ${
+                              isEven ? 'md:pr-8' : 'md:pl-8'
+                            } relative`}
                           >
-                            <span className="text-xs font-medium text-blue-600 dark:text-blue-400 pointer-events-none">
-                              {format(eventDate, 'MMM d')}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        {/* Mobile Connection Line */}
-                        <div className="md:hidden absolute left-8 top-1/2 transform -translate-y-1/2 w-6 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-10" />
-                        
-                        {/* Timeline Card */}
-                        <div className={`
-                          md:flex 
-                          ${isEven ? 'md:justify-start' : 'md:justify-end'}
-                          ml-8 md:ml-0
-                        `}>
-                          <div className={`
-                            w-full 
-                            md:max-w-md 
-                            ${isEven ? 'md:pr-8' : 'md:pl-8'}
-                            relative
-                          `}>
-                            {/* Connection Line - Desktop only */}
-                            <div className={`
-                              hidden md:block absolute top-1/2 transform -translate-y-1/2 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-10
-                              ${isEven 
-                                ? 'left-full w-8' 
-                                : 'right-full w-8'
-                              }
-                            `} />
-                            
-                            {/* Timeline Card */}
-                            <TimelineCard 
-                              event={event} 
-                              onEdit={handleEditEvent}
-                              onDelete={handleDeleteEvent}
-                              className={`
-                                transform transition-all duration-300 hover:scale-[1.02] 
-                                ${isEven ? 'md:hover:translate-x-1' : 'md:hover:-translate-x-1'}
-                                ${isDraggingThis ? 'ring-2 ring-blue-500/30' : ''}
-                              `} 
+                            <div
+                              className={`hidden md:block absolute top-6 transform -translate-y-1/2 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-10 ${
+                                isEven ? 'left-full w-8' : 'right-full w-8'
+                              }`}
                             />
+                            <div className="space-y-4">
+                              {group.events.map(event => (
+                                <TimelineCard
+                                  key={event.id}
+                                  event={event}
+                                  onEdit={handleEditEvent}
+                                  onDelete={handleDeleteEvent}
+                                  className={`transform transition-all duration-300 hover:scale-[1.02] ${
+                                    isEven
+                                      ? 'md:hover:translate-x-1'
+                                      : 'md:hover:-translate-x-1'
+                                  }`}
+                                />
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -569,4 +553,4 @@ export function Timeline() {
   );
 }
 
-export default Timeline; 
+export default Timeline;
