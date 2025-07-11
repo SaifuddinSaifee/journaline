@@ -1,10 +1,6 @@
-import Timeline from '../components/Timeline';
-import MainLayout from '../components/MainLayout';
+// This page provides timeline CRUD management; we reuse the existing `TimelinesPage` component.
+import TimelinesPage from '../timelines/page';
 
-export default function TimelinePage() {
-  return (
-    <MainLayout>
-      <Timeline />
-    </MainLayout>
-  );
-} 
+export default function TimelineManagementPage() {
+  return <TimelinesPage />;
+}

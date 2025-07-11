@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { cn } from '../lib/utils';
 import GlassButton from './GlassButton';
 import GlassCard from './GlassCard';
-import { EventFormData } from '../lib/types';
-import { IoClose } from 'react-icons/io5';
+import { EventFormData, Timeline } from '../lib/types';
+import { timelineService } from '../lib/timelineService';
+import { IoClose, IoChevronDown } from 'react-icons/io5';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -19,10 +19,11 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
   const [formData, setFormData] = useState<EventFormData>({
     title: '',
     description: '',
-    addToTimeline: false,
+    timelineIds: [],
   });
+  const [timelines, setTimelines] = useState<Timeline[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Handle escape key to close modal
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -34,14 +35,21 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
-  // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       setFormData({
         title: '',
         description: '',
-        addToTimeline: false,
+        timelineIds: [],
       });
+      
+      const fetchTimelines = async () => {
+        const { data } = await timelineService.getAllTimelines();
+        if (data) {
+          setTimelines(data);
+        }
+      };
+      fetchTimelines();
     }
   }, [isOpen]);
 
@@ -53,18 +61,20 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
     }
   };
 
-  const handleInputChange = (field: keyof EventFormData, value: string | boolean) => {
-    if (field === 'title' && typeof value === 'string' && value.length > 35) {
-      return; // Don't update if title exceeds 35 characters
-    }
-    if (field === 'description' && typeof value === 'string' && value.length > 250) {
-      return; // Don't update if description exceeds 250 characters
-    }
+  const handleInputChange = (field: keyof Omit<EventFormData, 'timelineIds'>, value: string) => {
+    const maxLength = field === 'title' ? 35 : 250;
+    if (value.length > maxLength) return;
     
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleTimelineSelection = (timelineId: string) => {
+    setFormData(prev => {
+      const newTimelineIds = prev.timelineIds.includes(timelineId)
+        ? prev.timelineIds.filter(id => id !== timelineId)
+        : [...prev.timelineIds, timelineId];
+      return { ...prev, timelineIds: newTimelineIds };
+    });
   };
 
   const isFormValid = formData.title.trim() && formData.description.trim();
@@ -110,17 +120,8 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
                   id="title"
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
-                  className={cn(
-                    'w-full px-3 py-2 rounded-lg border',
-                    'surface-elevated backdrop-blur-sm',
-                    'focus:outline-none focus:ring-2 focus:ring-blue-500',
-                    'transition-all duration-200'
-                  )}
-                  style={{ 
-                    color: 'var(--text-primary)',
-                    borderColor: 'var(--glass-border)',
-                    backgroundColor: 'var(--surface-elevated)'
-                  }}
+                  className="w-full px-3 py-2 rounded-lg border surface-elevated backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                  style={{ color: 'var(--text-primary)', borderColor: 'var(--glass-border)', backgroundColor: 'var(--surface-elevated)' }}
                   placeholder="Enter event title..."
                   autoFocus
                 />
@@ -140,17 +141,8 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
                   id="description"
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
-                  className={cn(
-                    'w-full px-3 py-2 rounded-lg border',
-                    'surface-elevated backdrop-blur-sm',
-                    'focus:outline-none focus:ring-2 focus:ring-blue-500',
-                    'transition-all duration-200 resize-none'
-                  )}
-                  style={{ 
-                    color: 'var(--text-primary)',
-                    borderColor: 'var(--glass-border)',
-                    backgroundColor: 'var(--surface-elevated)'
-                  }}
+                  className="w-full px-3 py-2 rounded-lg border surface-elevated backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 resize-none"
+                  style={{ color: 'var(--text-primary)', borderColor: 'var(--glass-border)', backgroundColor: 'var(--surface-elevated)' }}
                   placeholder="Enter event description..."
                   rows={4}
                 />
@@ -161,42 +153,51 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="addToTimeline"
-                  checked={formData.addToTimeline}
-                  onChange={(e) => handleInputChange('addToTimeline', e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 focus:ring-2"
-                  style={{ 
-                    backgroundColor: 'var(--surface-base)',
-                    borderColor: 'var(--glass-border)'
-                  }}
-                />
-                <label htmlFor="addToTimeline" className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                  Add to timeline
-                </label>
+              {/* Timeline Multi-Select Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="w-full px-3 py-2 rounded-lg border surface-elevated backdrop-blur-sm flex justify-between items-center text-left"
+                  style={{ color: 'var(--text-primary)', borderColor: 'var(--glass-border)', backgroundColor: 'var(--surface-elevated)' }}
+                >
+                  <span>
+                    {formData.timelineIds.length > 0
+                      ? `${formData.timelineIds.length} timeline(s) selected`
+                      : 'Add to a timeline'}
+                  </span>
+                  <IoChevronDown className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isDropdownOpen && (
+                  <div className="absolute w-full mt-1 bg-gray-800/80 backdrop-blur-lg border border-gray-700/50 rounded-lg shadow-xl z-10 max-h-40 overflow-y-auto">
+                    {timelines.length > 0 ? (
+                      timelines.map(timeline => (
+                        <label
+                          key={timeline.id}
+                          className="flex items-center px-3 py-2 hover:bg-white/10 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formData.timelineIds.includes(timeline.id)}
+                            onChange={() => handleTimelineSelection(timeline.id)}
+                            className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500 border-gray-600 bg-gray-700"
+                          />
+                          <span className="ml-3 text-sm text-gray-200">{timeline.name}</span>
+                        </label>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-sm text-gray-400">No timelines available.</div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="flex justify-end space-x-2 mt-6">
-              <GlassButton
-                type="button"
-                variant="ghost"
-                onClick={onClose}
-                style={{ color: 'var(--text-primary)' }}
-              >
+              <GlassButton type="button" variant="ghost" onClick={onClose} style={{ color: 'var(--text-primary)' }}>
                 Cancel
               </GlassButton>
-              <GlassButton
-                type="submit"
-                variant="primary"
-                disabled={!isFormValid}
-                className={cn(
-                  'transition-all duration-200',
-                  !isFormValid && 'opacity-50 cursor-not-allowed'
-                )}
-              >
+              <GlassButton type="submit" variant="primary" disabled={!isFormValid}>
                 Save
               </GlassButton>
             </div>

@@ -2,22 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { EventModel } from '@/app/lib/models/Event';
 import { EventFormData } from '@/app/lib/types';
 
-// GET /api/events - Retrieve all events
+// GET /api/events - Retrieve events
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const timeline = searchParams.get('timeline');
+    const timelineId = searchParams.get('timelineId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
     let events;
 
-    if (startDate && endDate) {
+    if (timelineId) {
+      // Get events for a specific timeline
+      events = await EventModel.findEventsByTimelineId(timelineId);
+    } else if (startDate && endDate) {
       // Get events within date range
       events = await EventModel.findByDateRange(startDate, endDate);
-    } else if (timeline === 'true') {
-      // Get only timeline events
-      events = await EventModel.findTimelineEvents();
     } else {
       // Get all events
       events = await EventModel.findAll();
@@ -26,8 +26,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ events }, { status: 200 });
   } catch (error) {
     console.error('Error fetching events:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json(
-      { error: 'Failed to fetch events' },
+      { error: 'Failed to fetch events', details: errorMessage },
       { status: 500 }
     );
   }
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, description, addToTimeline, date } = body;
+    const { title, description, timelineIds, date } = body;
 
     // Validate required fields
     if (!title || !description || !date) {
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     const eventData: EventFormData & { date: string } = {
       title: title.trim(),
       description: description.trim(),
-      addToTimeline: Boolean(addToTimeline),
+      timelineIds: timelineIds || [], // Default to an empty array if not provided
       date: parsedDate.toISOString(),
     };
 
@@ -68,8 +69,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ event }, { status: 201 });
   } catch (error) {
     console.error('Error creating event:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json(
-      { error: 'Failed to create event' },
+      { error: 'Failed to create event', details: errorMessage },
       { status: 500 }
     );
   }

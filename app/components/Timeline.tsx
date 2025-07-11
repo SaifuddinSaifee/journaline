@@ -15,8 +15,9 @@ import {
 import { format } from "date-fns";
 import { motion } from "framer-motion";
 import { useTimelineEvents } from "../lib/hooks";
-import { Event } from "../lib/types";
+import { Event, Timeline as TimelineType } from "../lib/types";
 import { eventService } from "../lib/eventService";
+import { timelineService } from '../lib/timelineService';
 import GlassCard from "./GlassCard";
 import TimelineCard from "./TimelineCard";
 import DateRangeSelector, { DateRange } from "./DateRangeSelector";
@@ -30,24 +31,33 @@ interface DragState {
   currentY: number;
 }
 
-const DEFAULT_GROUP_SPACING = 500; // Default spacing between date groups
-const VERTICAL_PADDING = 50; // Vertical padding between groups
-const GROUP_POSITION_STORAGE_KEY = "timeline-group-positions";
-const GROUP_ORDER_STORAGE_KEY = "timeline-group-order";
+const DEFAULT_GROUP_SPACING = 500;
+const VERTICAL_PADDING = 50;
 
-export function Timeline() {
+interface TimelineProps {
+  timeline: TimelineType;
+}
+
+export function Timeline({ timeline }: TimelineProps) {
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: null,
     endDate: null,
   });
-  const { events, loading, error } = useTimelineEvents({ dateRange });
+  
+  // Use timelineId from props to fetch events
+  const { events, loading, error, refetch } = useTimelineEvents({
+    timelineId: timeline.id,
+    dateRange,
+  });
+
   const [timelineEvents, setTimelineEvents] = useState<Event[]>([]);
   
-  // State for visual order and positions of groups
-  const [groupOrder, setGroupOrder] = useState<string[]>([]);
+  // State for visual order and positions of groups, initialized from props
+  const [groupOrder, setGroupOrder] = useState<string[]>(timeline.groupOrder || []);
   const [groupPositions, setGroupPositions] = useState<Record<string, number>>(
-    {}
+    timeline.groupPositions || {}
   );
+  
   const [dragState, setDragState] = useState<DragState>({
     isDragging: false,
     groupId: null,
@@ -61,7 +71,7 @@ export function Timeline() {
   const timelineRef = useRef<HTMLDivElement>(null);
   const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Group events by date, creating a map
+  // Group events by date
   const groupsByDate = useMemo(() => {
     if (!timelineEvents) return new Map();
     
@@ -82,7 +92,10 @@ export function Timeline() {
 
   // Create the ordered array of groups for rendering
   const orderedGroups = useMemo(() => {
-    return groupOrder
+    // Ensure groupOrder only contains dates that are present in groupsByDate
+    const validGroupOrder = groupOrder.filter(date => groupsByDate.has(date));
+    
+    return validGroupOrder
       .map(date => {
         const events = groupsByDate.get(date);
         if (!events) return null;
@@ -91,67 +104,54 @@ export function Timeline() {
       .filter(Boolean) as { date: string, events: Event[] }[];
   }, [groupOrder, groupsByDate]);
 
-  // Load positions and order from localStorage on mount
-  useEffect(() => {
-    const savedPositions = localStorage.getItem(GROUP_POSITION_STORAGE_KEY);
-    const savedOrder = localStorage.getItem(GROUP_ORDER_STORAGE_KEY);
-    
-    if (savedPositions) {
-      try {
-        setGroupPositions(JSON.parse(savedPositions));
-      } catch (err) {
-        console.error('Error loading timeline group positions:', err);
-      }
-    }
-    if (savedOrder) {
-      try {
-        setGroupOrder(JSON.parse(savedOrder));
-      } catch (err) {
-        console.error('Error loading timeline group order:', err);
-      }
-    }
-  }, []);
-
-  // Save positions and order to localStorage when they change
-  useEffect(() => {
-    if (Object.keys(groupPositions).length > 0) {
-      localStorage.setItem(
-        GROUP_POSITION_STORAGE_KEY,
-        JSON.stringify(groupPositions)
-      );
-    }
-    if (groupOrder.length > 0) {
-      localStorage.setItem(GROUP_ORDER_STORAGE_KEY, JSON.stringify(groupOrder));
-    }
-  }, [groupPositions, groupOrder]);
-  
-  // Sync local state with hook and initialize order
+  // Sync with fetched events and initialize order/positions if needed
   useEffect(() => {
     setTimelineEvents(events);
-    
-    // Initialize order if not already loaded from storage or if events changed
-    const newChronologicalOrder = Array.from(groupsByDate.keys())
+
+    const chronologicalOrder = Array.from(groupsByDate.keys())
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
 
-    const currentOrderSet = new Set(groupOrder);
-    const newOrderSet = new Set(newChronologicalOrder);
-
-    if (groupOrder.length === 0 || currentOrderSet.size !== newOrderSet.size) {
-       setGroupOrder(newChronologicalOrder);
+    // Initialize order if it's empty or doesn't match the current event groups
+    if (groupOrder.length === 0 && chronologicalOrder.length > 0) {
+      setGroupOrder(chronologicalOrder);
     }
-  }, [events, groupsByDate]);
+    
+    // Initialize positions if empty
+    if (Object.keys(groupPositions).length === 0 && chronologicalOrder.length > 0) {
+      const newPositions: Record<string, number> = {};
+      let currentY = 100;
+      chronologicalOrder.forEach(date => {
+        newPositions[date] = currentY;
+        // Estimate height for initial layout
+        const estimatedEventHeight = 150; // A rough guess
+        const groupHeight = (groupsByDate.get(date)?.length || 0) * estimatedEventHeight;
+        currentY += groupHeight + VERTICAL_PADDING;
+      });
+      setGroupPositions(newPositions);
+    }
+  }, [events, groupsByDate, groupOrder.length, groupPositions]);
 
+
+  // Persist layout changes to the database
+  const persistLayout = useCallback(async (order: string[], positions: Record<string, number>) => {
+    await timelineService.updateTimeline(timeline.id, {
+      groupOrder: order,
+      groupPositions: positions,
+    });
+  }, [timeline.id]);
+  
   // Calculate default positions for groups that don't have one
   const getGroupPosition = useCallback((date: string, index: number) => {
     if (groupPositions[date] !== undefined) {
       return groupPositions[date];
     }
-    // This fallback will be used for newly added groups
+    
     let calculatedY = 100;
-    for (let i = 0; i < index; i++) {
-        const prevGroupDate = groupOrder[i];
-        const prevGroupHeight = groupRefs.current[prevGroupDate]?.offsetHeight || DEFAULT_GROUP_SPACING;
-        calculatedY += prevGroupHeight + VERTICAL_PADDING;
+    if (index > 0) {
+      const prevGroupDate = groupOrder[index - 1];
+      const prevGroupY = groupPositions[prevGroupDate] || 0;
+      const prevGroupHeight = groupRefs.current[prevGroupDate]?.offsetHeight || DEFAULT_GROUP_SPACING;
+      calculatedY = prevGroupY + prevGroupHeight + VERTICAL_PADDING;
     }
     return calculatedY;
   }, [groupPositions, groupOrder]);
@@ -177,17 +177,23 @@ export function Timeline() {
     const deltaY = e.clientY - dragState.startY;
     const newY = dragState.startCustomY + deltaY;
     setDragState(prev => ({ ...prev, currentY: newY }));
-    setGroupPositions(prev => ({ ...prev, [dragState.groupId!]: newY }));
   }, [dragState]);
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = useCallback(async () => {
     if (!dragState.groupId) return;
 
+    const finalPositions = {
+      ...groupPositions,
+      [dragState.groupId]: dragState.currentY,
+    };
+
     // Create a list of groups with their final positions
-    const finalLayout = groupOrder.map(date => ({
-      date,
-      y: groupPositions[date] || 0
-    })).sort((a, b) => a.y - b.y);
+    const finalLayout = groupOrder
+      .map(date => ({
+        date,
+        y: finalPositions[date] || 0,
+      }))
+      .sort((a, b) => a.y - b.y);
 
     const newOrder = finalLayout.map(g => g.date);
 
@@ -203,8 +209,17 @@ export function Timeline() {
     setGroupOrder(newOrder);
     setGroupPositions(newPositions);
     
+    // Persist the new layout to the database
+    await persistLayout(newOrder, newPositions);
+    
     setDragState({ isDragging: false, groupId: null, startY: 0, startScrollY: 0, startCustomY: 0, currentY: 0 });
-  }, [dragState.groupId, groupOrder, groupPositions]);
+  }, [
+    dragState.groupId,
+    dragState.currentY,
+    groupOrder,
+    groupPositions,
+    persistLayout,
+  ]);
 
   // Touch event handlers for mobile support
   const handleTouchStart = useCallback((e: React.TouchEvent, groupId: string) => {
@@ -230,7 +245,6 @@ export function Timeline() {
     const deltaY = touch.clientY - dragState.startY;
     const newY = dragState.startCustomY + deltaY;
     setDragState(prev => ({ ...prev, currentY: newY }));
-    setGroupPositions(prev => ({ ...prev, [dragState.groupId!]: newY }));
   }, [dragState]);
 
   const handleTouchEnd = useCallback(() => {
@@ -253,44 +267,28 @@ export function Timeline() {
     }
   }, [dragState.isDragging, handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd]);
 
+  // When an event is edited, we only need to refetch if its timeline association changes.
+  // For now, a simple refetch is sufficient.
   const handleEditEvent = async (updatedEvent: Event) => {
-    try {
-      const result = await eventService.updateEvent(updatedEvent.id, {
-        title: updatedEvent.title,
-        description: updatedEvent.description,
-        addToTimeline: updatedEvent.addToTimeline,
-      });
-
-      if (result.error) {
-        console.error('Error updating event:', result.error);
-      } else if (result.data) {
-        setTimelineEvents(prev =>
-          prev.map(event =>
-            event.id === updatedEvent.id ? result.data! : event
-          )
-        );
-        const event = new CustomEvent('events-updated');
-        window.dispatchEvent(event);
-      }
-    } catch (err) {
-      console.error('Error updating event:', err);
+    const { id, title, description, timelineIds } = updatedEvent;
+    const result = await eventService.updateEvent(id, { title, description, timelineIds });
+    if (result.error) {
+      console.error('Error updating event:', result.error);
+    } else {
+      refetch(); // Refetch all events for this timeline
+      const event = new CustomEvent('events-updated'); // Notify other components
+      window.dispatchEvent(event);
     }
   };
 
   const handleDeleteEvent = async (eventId: string) => {
-    try {
-      const result = await eventService.deleteEvent(eventId);
-      if (result.error) {
-        console.error('Error deleting event:', result.error);
-      } else {
-        setTimelineEvents(prev =>
-          prev.filter(event => event.id !== eventId)
-        );
-        const event = new CustomEvent('events-updated');
-        window.dispatchEvent(event);
-      }
-    } catch (err) {
-      console.error('Error deleting event:', err);
+    const result = await eventService.deleteEvent(eventId);
+    if (result.error) {
+      console.error('Error deleting event:', result.error);
+    } else {
+      refetch(); // Refetch all events for this timeline
+      const event = new CustomEvent('events-updated'); // Notify other components
+      window.dispatchEvent(event);
     }
   };
 
@@ -298,24 +296,30 @@ export function Timeline() {
     setDateRange(newRange);
   };
 
-  const handleResetPositions = useCallback(() => {
+  const handleResetPositions = useCallback(async () => {
     setIsResetting(true);
-    setTimeout(() => {
-      // Clear stored positions and order
-      setGroupPositions({});
-      localStorage.removeItem(GROUP_POSITION_STORAGE_KEY);
-      localStorage.removeItem(GROUP_ORDER_STORAGE_KEY);
+    
+    const chronologicalOrder = Array.from(groupsByDate.keys())
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    
+    const newPositions: Record<string, number> = {};
+    let currentY = 100;
+    chronologicalOrder.forEach(date => {
+      newPositions[date] = currentY;
+      const groupHeight = groupRefs.current[date]?.offsetHeight || DEFAULT_GROUP_SPACING;
+      currentY += groupHeight + VERTICAL_PADDING;
+    });
 
-      // Reset order to chronological
-      const chronologicalOrder = Array.from(groupsByDate.keys())
-        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-      setGroupOrder(chronologicalOrder);
-      
-      setDragState({ isDragging: false, groupId: null, startY: 0, startScrollY: 0, startCustomY: 0, currentY: 0 });
-      setIsResetting(false);
-      console.log('Timeline positions and order reset to default');
-    }, 150);
-  }, [groupsByDate]);
+    setGroupOrder(chronologicalOrder);
+    setGroupPositions(newPositions);
+    
+    // Persist the reset layout to the database
+    await persistLayout(chronologicalOrder, newPositions);
+    
+    setDragState({ isDragging: false, groupId: null, startY: 0, startScrollY: 0, startCustomY: 0, currentY: 0 });
+    setIsResetting(false);
+    console.log('Timeline positions and order reset to default');
+  }, [groupsByDate, persistLayout]);
 
   const timelineHeight = Math.max(
     600,
@@ -368,11 +372,10 @@ export function Timeline() {
         <div className="p-4 sm:p-6">
           <div className="mb-8">
             <h2 className="text-2xl sm:text-3xl font-bold text-text-primary mb-2">
-              Timeline
+              {timeline.name}
             </h2>
             <p className="text-text-secondary text-sm sm:text-base">
-              Your chronological journey. Drag date pills to re-order event
-              groups.
+              {timeline.description || 'Your chronological journey. Drag date pills to re-order event groups.'}
             </p>
           </div>
 
@@ -425,7 +428,7 @@ export function Timeline() {
               <p className="text-text-secondary mb-4">
                 {dateRange.startDate && dateRange.endDate
                   ? 'Try adjusting your date range or create new events in this period.'
-                  : 'Create journal entries and mark them with "Add to timeline" to see them here.'}
+                  : 'Create journal entries and add them to this timeline to see them here.'}
               </p>
               <p className="text-text-muted text-sm">
                 Your timeline will display events chronologically by default.

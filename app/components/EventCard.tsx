@@ -6,8 +6,9 @@ import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
 import GlassCard from './GlassCard';
 import GlassButton from './GlassButton';
-import { Event } from '../lib/types';
-import { IoTimeOutline, IoCheckmark, IoClose, IoTrash } from 'react-icons/io5';
+import { Event, Timeline } from '../lib/types';
+import { timelineService } from '../lib/timelineService';
+import { IoTimeOutline, IoCheckmark, IoClose, IoTrash, IoChevronDown } from 'react-icons/io5';
 import { FaPencilAlt } from 'react-icons/fa';
 
 interface EventCardProps {
@@ -23,15 +24,26 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
   const [editData, setEditData] = useState({
     title: event.title,
     description: event.description,
-    addToTimeline: event.addToTimeline,
+    timelineIds: event.timelineIds || [],
   });
+  const [timelines, setTimelines] = useState<Timeline[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    // When entering edit mode, fetch all available timelines
+    if (isEditing) {
+      const fetchTimelines = async () => {
+        const { data } = await timelineService.getAllTimelines();
+        if (data) {
+          setTimelines(data);
+        }
+      };
+      fetchTimelines();
+    }
+  }, [isEditing]);
 
   const handleEdit = () => {
     setIsEditing(true);
-    // Brief timeout to allow the hover state to clear
-    setTimeout(() => {
-      (document.activeElement as HTMLElement)?.blur?.();
-    }, 50);
   };
 
   const handleSave = () => {
@@ -40,15 +52,11 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
         ...event,
         title: editData.title,
         description: editData.description,
-        addToTimeline: editData.addToTimeline,
+        timelineIds: editData.timelineIds,
         updatedAt: new Date().toISOString(),
       };
       onEdit?.(updatedEvent);
       setIsEditing(false);
-      // Brief timeout to allow the hover state to clear
-      setTimeout(() => {
-        (document.activeElement as HTMLElement)?.blur?.();
-      }, 50);
     }
   };
 
@@ -56,14 +64,10 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
     setEditData({
       title: event.title,
       description: event.description,
-      addToTimeline: event.addToTimeline,
+      timelineIds: event.timelineIds || [],
     });
     setIsEditing(false);
-    // Brief timeout to allow the hover state to clear
-    setTimeout(() => {
-      (document.activeElement as HTMLElement)?.blur?.();
-    }, 50);
-  }, [event.title, event.description, event.addToTimeline]);
+  }, [event.title, event.description, event.timelineIds]);
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this event?')) {
@@ -71,13 +75,13 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
     }
   };
 
-  const handleTimelineToggle = (checked: boolean) => {
-    const updatedEvent: Event = {
-      ...event,
-      addToTimeline: checked,
-      updatedAt: new Date().toISOString(),
-    };
-    onEdit?.(updatedEvent);
+  const handleTimelineSelection = (timelineId: string) => {
+    setEditData(prev => {
+      const newTimelineIds = prev.timelineIds.includes(timelineId)
+        ? prev.timelineIds.filter(id => id !== timelineId)
+        : [...prev.timelineIds, timelineId];
+      return { ...prev, timelineIds: newTimelineIds };
+    });
   };
 
   // Handle escape key to cancel editing
@@ -107,13 +111,7 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
                     setEditData(prev => ({ ...prev, title: value }));
                   }
                 }}
-                className={cn(
-                  'w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30',
-                  'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
-                  'text-text-primary text-lg font-semibold',
-                  'focus:outline-none focus:ring-2 focus:ring-blue-500/50',
-                  'transition-all duration-200 hover:bg-white/80 dark:hover:bg-gray-800/80'
-                )}
+                className="w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm text-text-primary text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-200"
                 autoFocus
                 placeholder="Event title..."
               />
@@ -134,7 +132,7 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
         </div>
         
         <div className="flex items-center space-x-2">
-          {showTimelineBadge && event.addToTimeline && !isEditing && (
+          {showTimelineBadge && event.timelineIds?.length > 0 && !isEditing && (
             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
               <IoTimeOutline className="w-3 h-3 mr-1" />
               Timeline
@@ -143,47 +141,19 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
           
           {isEditing ? (
             <div className="flex space-x-1">
-              <GlassButton
-                variant="ghost"
-                size="sm"
-                onClick={handleCancel}
-                className="w-10 h-10 p-0 button-transition"
-                title="Cancel"
-                onMouseDown={(e) => e.currentTarget.blur()}
-              >
+              <GlassButton variant="ghost" size="sm" onClick={handleCancel} title="Cancel">
                 <IoClose className="w-6 h-6" />
               </GlassButton>
-              <GlassButton
-                variant="ghost"
-                size="sm"
-                onClick={handleSave}
-                className="w-10 h-10 p-0 button-transition"
-                title="Save"
-                onMouseDown={(e) => e.currentTarget.blur()}
-              >
+              <GlassButton variant="ghost" size="sm" onClick={handleSave} title="Save">
                 <IoCheckmark className="w-6 h-6" />
               </GlassButton>
             </div>
           ) : (
             <div className="flex space-x-1">
-              <GlassButton
-                variant="ghost"
-                size="sm"
-                onClick={handleEdit}
-                className="w-10 h-10 p-0 button-transition"
-                title="Edit"
-                onMouseDown={(e) => e.currentTarget.blur()}
-              >
-                <FaPencilAlt className="w-6 h-6" />
+              <GlassButton variant="ghost" size="sm" onClick={handleEdit} title="Edit">
+                <FaPencilAlt className="w-5 h-5" />
               </GlassButton>
-              <GlassButton
-                variant="ghost"
-                size="sm"
-                onClick={handleDelete}
-                className="w-10 h-10 p-0 text-red-500 hover:text-red-700 button-transition"
-                title="Delete"
-                onMouseDown={(e) => e.currentTarget.blur()}
-              >
+              <GlassButton variant="ghost" size="sm" onClick={handleDelete} className="text-red-500" title="Delete">
                 <IoTrash className="w-6 h-6" />
               </GlassButton>
             </div>
@@ -203,13 +173,7 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
                     setEditData(prev => ({ ...prev, description: value }));
                   }
                 }}
-                className={cn(
-                  'w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30',
-                  'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
-                  'text-text-primary resize-none',
-                  'focus:outline-none focus:ring-2 focus:ring-blue-500/50',
-                  'transition-all duration-200 hover:bg-white/80 dark:hover:bg-gray-800/80'
-                )}
+                className="w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm text-text-primary resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 rows={3}
                 placeholder="Event description..."
               />
@@ -220,17 +184,36 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
               </div>
             </div>
             
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id={`timeline-${event.id}`}
-                checked={editData.addToTimeline}
-                onChange={(e) => setEditData(prev => ({ ...prev, addToTimeline: e.target.checked }))}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-              />
-              <label htmlFor={`timeline-${event.id}`} className="text-sm text-text-primary">
-                Add to timeline
-              </label>
+            {/* Timeline Multi-Select Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="w-full px-3 py-2 rounded-lg border surface-elevated backdrop-blur-sm flex justify-between items-center text-left"
+                style={{ color: 'var(--text-primary)', borderColor: 'var(--glass-border)', backgroundColor: 'var(--surface-elevated)' }}
+              >
+                <span>
+                  {editData.timelineIds.length > 0
+                    ? `${editData.timelineIds.length} timeline(s) selected`
+                    : 'Add to a timeline'}
+                </span>
+                <IoChevronDown className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isDropdownOpen && (
+                <div className="absolute w-full mt-1 bg-gray-800/80 backdrop-blur-lg border border-gray-700/50 rounded-lg shadow-xl z-10 max-h-40 overflow-y-auto">
+                  {timelines.map(timeline => (
+                    <label key={timeline.id} className="flex items-center px-3 py-2 hover:bg-white/10 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editData.timelineIds.includes(timeline.id)}
+                        onChange={() => handleTimelineSelection(timeline.id)}
+                        className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500 border-gray-600 bg-gray-700"
+                      />
+                      <span className="ml-3 text-sm text-gray-200">{timeline.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -250,29 +233,10 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
                       {children}
                     </code>
                   ),
-                  blockquote: ({ children }) => (
-                    <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-text-muted">
-                      {children}
-                    </blockquote>
-                  ),
                 }}
               >
                 {event.description}
               </ReactMarkdown>
-            </div>
-            
-            {/* Always visible timeline checkbox */}
-            <div className="flex items-center space-x-2 pt-2 border-t border-gray-200/30 dark:border-gray-700/30">
-              <input
-                type="checkbox"
-                id={`timeline-always-${event.id}`}
-                checked={event.addToTimeline}
-                onChange={(e) => handleTimelineToggle(e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-              />
-              <label htmlFor={`timeline-always-${event.id}`} className="text-sm text-text-primary">
-                Add to timeline
-              </label>
             </div>
           </div>
         )}

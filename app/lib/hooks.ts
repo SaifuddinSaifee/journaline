@@ -9,6 +9,7 @@ interface DateRange {
 }
 
 interface UseTimelineEventsOptions {
+  timelineId?: string;
   dateRange?: DateRange;
 }
 
@@ -23,25 +24,21 @@ export function useTimelineEvents(options: UseTimelineEventsOptions = {}): UseTi
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { dateRange } = options;
+  const { timelineId, dateRange } = options;
 
   const loadEvents = useCallback(async () => {
+    if (!timelineId) {
+      setEvents([]);
+      setLoading(false);
+      return;
+    }
+      
     setLoading(true);
     setError(null);
     
     try {
-      let result;
-      
-      if (dateRange && dateRange.startDate && dateRange.endDate) {
-        // Get events within date range
-        result = await eventService.getEventsByDateRange(
-          dateRange.startDate.toISOString(),
-          dateRange.endDate.toISOString()
-        );
-      } else {
-        // Get timeline events
-        result = await eventService.getTimelineEvents();
-      }
+      // Get events for a specific timeline
+      const result = await eventService.getEventsByTimelineId(timelineId);
 
       if (result.error) {
         setError(result.error);
@@ -56,23 +53,11 @@ export function useTimelineEvents(options: UseTimelineEventsOptions = {}): UseTi
     } finally {
       setLoading(false);
     }
-  }, [dateRange]);
+  }, [timelineId]);
 
   // Load events on mount
   useEffect(() => {
     loadEvents();
-  }, [loadEvents]);
-
-  // Listen for localStorage changes to update events
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'journaline-events') {
-        loadEvents();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
   }, [loadEvents]);
 
   // Listen for custom events when events are updated within the same tab
@@ -85,13 +70,10 @@ export function useTimelineEvents(options: UseTimelineEventsOptions = {}): UseTi
     return () => window.removeEventListener('events-updated', handleEventUpdate);
   }, [loadEvents]);
 
-  // Filter, sort, and apply date range to timeline events
-  const timelineEvents = useMemo(() => {
-    let filteredEvents = events.filter(event => event.addToTimeline);
-    
-    // Apply date range filter
+  // Filter events by date range if provided
+  const filteredEvents = useMemo(() => {
     if (dateRange && dateRange.startDate && dateRange.endDate) {
-      filteredEvents = filteredEvents.filter(event => {
+      return events.filter(event => {
         const eventDate = parseISO(event.date);
         return isWithinInterval(eventDate, {
           start: dateRange.startDate!,
@@ -99,13 +81,11 @@ export function useTimelineEvents(options: UseTimelineEventsOptions = {}): UseTi
         });
       });
     }
-    
-    // Sort chronologically (newest to oldest)
-    return filteredEvents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return events;
   }, [events, dateRange]);
 
   return {
-    events: timelineEvents,
+    events: filteredEvents,
     loading,
     error,
     refetch: loadEvents,

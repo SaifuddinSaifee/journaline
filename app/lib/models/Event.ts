@@ -14,7 +14,7 @@ export class EventModel {
       
       // Create indexes for better performance
       await this.collection.createIndex({ date: 1 });
-      await this.collection.createIndex({ addToTimeline: 1 });
+      await this.collection.createIndex({ timelineIds: 1 }); // Changed from addToTimeline
       await this.collection.createIndex({ createdAt: -1 });
     }
     return this.collection;
@@ -26,7 +26,7 @@ export class EventModel {
       title: doc.title,
       description: doc.description,
       date: doc.date,
-      addToTimeline: doc.addToTimeline,
+      timelineIds: (doc.timelineIds ?? []).map(id => id.toString()), // Safely convert ObjectIds to strings
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
@@ -41,7 +41,7 @@ export class EventModel {
         title: eventData.title.trim(),
         description: eventData.description.trim(),
         date: eventData.date,
-        addToTimeline: eventData.addToTimeline,
+        timelineIds: eventData.timelineIds.map(id => new ObjectId(id)), // Convert strings to ObjectIds
         createdAt: now,
         updatedAt: now,
       };
@@ -91,18 +91,21 @@ export class EventModel {
     }
   }
 
-  static async findTimelineEvents(): Promise<EventResponse[]> {
+  static async findEventsByTimelineId(timelineId: string): Promise<EventResponse[]> {
     try {
+      if (!ObjectId.isValid(timelineId)) {
+        return [];
+      }
       const collection = await this.getCollection();
       const documents = await collection
-        .find({ addToTimeline: true })
+        .find({ timelineIds: new ObjectId(timelineId) })
         .sort({ date: -1 })
         .toArray();
       
       return documents.map(doc => this.documentToResponse(doc));
     } catch (error) {
-      console.error('Error finding timeline events:', error);
-      throw new Error('Failed to retrieve timeline events');
+      console.error('Error finding events by timeline ID:', error);
+      throw new Error('Failed to retrieve events by timeline ID');
     }
   }
 
@@ -123,8 +126,8 @@ export class EventModel {
       if (eventData.description !== undefined) {
         updateData.description = eventData.description.trim();
       }
-      if (eventData.addToTimeline !== undefined) {
-        updateData.addToTimeline = eventData.addToTimeline;
+      if (eventData.timelineIds !== undefined) {
+        updateData.timelineIds = eventData.timelineIds.map(id => new ObjectId(id));
       }
 
       const result = await collection.findOneAndUpdate(
