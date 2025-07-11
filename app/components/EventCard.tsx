@@ -6,32 +6,43 @@ import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
 import GlassCard from './GlassCard';
 import GlassButton from './GlassButton';
-import { Event } from '../lib/types';
-import { IoTimeOutline, IoCheckmark, IoClose, IoTrash } from 'react-icons/io5';
+import { Event, Timeline } from '../lib/types';
+import { IoTimeOutline, IoCheckmark, IoClose, IoTrash, IoChevronDown } from 'react-icons/io5';
 import { FaPencilAlt } from 'react-icons/fa';
 
 interface EventCardProps {
   event: Event;
   onEdit?: (event: Event) => void;
   onDelete?: (eventId: string) => void;
-  showTimelineBadge?: boolean;
   className?: string;
+  allTimelines: Timeline[];
 }
 
-export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, className }: EventCardProps) {
+export function EventCard({ event, onEdit, onDelete, className, allTimelines }: EventCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     title: event.title,
     description: event.description,
-    addToTimeline: event.addToTimeline,
   });
+  const [associatedTimelines, setAssociatedTimelines] = useState<Timeline[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchAssociatedTimelines = async () => {
+      if (event.timelineIds && event.timelineIds.length > 0) {
+        // We can find the timeline details from the `allTimelines` prop
+        const associated = allTimelines.filter(t => event.timelineIds.includes(t.id));
+        setAssociatedTimelines(associated);
+      } else {
+        setAssociatedTimelines([]);
+      }
+    };
+
+    fetchAssociatedTimelines();
+  }, [event.timelineIds, allTimelines]);
 
   const handleEdit = () => {
     setIsEditing(true);
-    // Brief timeout to allow the hover state to clear
-    setTimeout(() => {
-      (document.activeElement as HTMLElement)?.blur?.();
-    }, 50);
   };
 
   const handleSave = () => {
@@ -40,15 +51,11 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
         ...event,
         title: editData.title,
         description: editData.description,
-        addToTimeline: editData.addToTimeline,
+        timelineIds: event.timelineIds || [],
         updatedAt: new Date().toISOString(),
       };
       onEdit?.(updatedEvent);
       setIsEditing(false);
-      // Brief timeout to allow the hover state to clear
-      setTimeout(() => {
-        (document.activeElement as HTMLElement)?.blur?.();
-      }, 50);
     }
   };
 
@@ -56,14 +63,9 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
     setEditData({
       title: event.title,
       description: event.description,
-      addToTimeline: event.addToTimeline,
     });
     setIsEditing(false);
-    // Brief timeout to allow the hover state to clear
-    setTimeout(() => {
-      (document.activeElement as HTMLElement)?.blur?.();
-    }, 50);
-  }, [event.title, event.description, event.addToTimeline]);
+  }, [event.title, event.description]);
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this event?')) {
@@ -71,16 +73,19 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
     }
   };
 
-  const handleTimelineToggle = (checked: boolean) => {
+  const handleTimelineSelection = (timelineId: string) => {
+    const newTimelineIds = (event.timelineIds || []).includes(timelineId)
+        ? (event.timelineIds || []).filter(id => id !== timelineId)
+        : [...(event.timelineIds || []), timelineId];
+    
     const updatedEvent: Event = {
-      ...event,
-      addToTimeline: checked,
-      updatedAt: new Date().toISOString(),
+        ...event,
+        timelineIds: newTimelineIds,
+        updatedAt: new Date().toISOString(),
     };
     onEdit?.(updatedEvent);
   };
 
-  // Handle escape key to cancel editing
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isEditing) {
@@ -107,13 +112,7 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
                     setEditData(prev => ({ ...prev, title: value }));
                   }
                 }}
-                className={cn(
-                  'w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30',
-                  'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
-                  'text-text-primary text-lg font-semibold',
-                  'focus:outline-none focus:ring-2 focus:ring-blue-500/50',
-                  'transition-all duration-200 hover:bg-white/80 dark:hover:bg-gray-800/80'
-                )}
+                className="w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm text-text-primary text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-200"
                 autoFocus
                 placeholder="Event title..."
               />
@@ -131,59 +130,34 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
           <p className="text-sm text-text-muted">
             {format(new Date(event.date), 'MMMM d, yyyy')}
           </p>
+          {associatedTimelines.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {associatedTimelines.map(timeline => (
+                <span key={timeline.id} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                  <IoTimeOutline className="w-3 h-3 mr-1" />
+                  {timeline.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         
         <div className="flex items-center space-x-2">
-          {showTimelineBadge && event.addToTimeline && !isEditing && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-              <IoTimeOutline className="w-3 h-3 mr-1" />
-              Timeline
-            </span>
-          )}
-          
           {isEditing ? (
             <div className="flex space-x-1">
-              <GlassButton
-                variant="ghost"
-                size="sm"
-                onClick={handleCancel}
-                className="w-10 h-10 p-0 button-transition"
-                title="Cancel"
-                onMouseDown={(e) => e.currentTarget.blur()}
-              >
+              <GlassButton variant="ghost" size="sm" onClick={handleCancel} title="Cancel">
                 <IoClose className="w-6 h-6" />
               </GlassButton>
-              <GlassButton
-                variant="ghost"
-                size="sm"
-                onClick={handleSave}
-                className="w-10 h-10 p-0 button-transition"
-                title="Save"
-                onMouseDown={(e) => e.currentTarget.blur()}
-              >
+              <GlassButton variant="ghost" size="sm" onClick={handleSave} title="Save">
                 <IoCheckmark className="w-6 h-6" />
               </GlassButton>
             </div>
           ) : (
             <div className="flex space-x-1">
-              <GlassButton
-                variant="ghost"
-                size="sm"
-                onClick={handleEdit}
-                className="w-10 h-10 p-0 button-transition"
-                title="Edit"
-                onMouseDown={(e) => e.currentTarget.blur()}
-              >
-                <FaPencilAlt className="w-6 h-6" />
+              <GlassButton variant="ghost" size="sm" onClick={handleEdit} title="Edit">
+                <FaPencilAlt className="w-5 h-5" />
               </GlassButton>
-              <GlassButton
-                variant="ghost"
-                size="sm"
-                onClick={handleDelete}
-                className="w-10 h-10 p-0 text-red-500 hover:text-red-700 button-transition"
-                title="Delete"
-                onMouseDown={(e) => e.currentTarget.blur()}
-              >
+              <GlassButton variant="ghost" size="sm" onClick={handleDelete} className="text-red-500" title="Delete">
                 <IoTrash className="w-6 h-6" />
               </GlassButton>
             </div>
@@ -203,13 +177,7 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
                     setEditData(prev => ({ ...prev, description: value }));
                   }
                 }}
-                className={cn(
-                  'w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30',
-                  'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
-                  'text-text-primary resize-none',
-                  'focus:outline-none focus:ring-2 focus:ring-blue-500/50',
-                  'transition-all duration-200 hover:bg-white/80 dark:hover:bg-gray-800/80'
-                )}
+                className="w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm text-text-primary resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 rows={3}
                 placeholder="Event description..."
               />
@@ -219,26 +187,12 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
                 </span>
               </div>
             </div>
-            
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id={`timeline-${event.id}`}
-                checked={editData.addToTimeline}
-                onChange={(e) => setEditData(prev => ({ ...prev, addToTimeline: e.target.checked }))}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-              />
-              <label htmlFor={`timeline-${event.id}`} className="text-sm text-text-primary">
-                Add to timeline
-              </label>
-            </div>
           </div>
         ) : (
           <div className="space-y-3">
             <div className="prose prose-sm max-w-none dark:prose-invert">
               <ReactMarkdown
                 components={{
-                  // Custom styling for markdown elements
                   p: ({ children }) => <p className="text-text-secondary mb-2 last:mb-0">{children}</p>,
                   strong: ({ children }) => <strong className="text-text-primary font-semibold">{children}</strong>,
                   em: ({ children }) => <em className="text-text-secondary italic">{children}</em>,
@@ -250,30 +204,45 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
                       {children}
                     </code>
                   ),
-                  blockquote: ({ children }) => (
-                    <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-text-muted">
-                      {children}
-                    </blockquote>
-                  ),
                 }}
               >
                 {event.description}
               </ReactMarkdown>
             </div>
-            
-            {/* Always visible timeline checkbox */}
-            <div className="flex items-center space-x-2 pt-2 border-t border-gray-200/30 dark:border-gray-700/30">
-              <input
-                type="checkbox"
-                id={`timeline-always-${event.id}`}
-                checked={event.addToTimeline}
-                onChange={(e) => handleTimelineToggle(e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-              />
-              <label htmlFor={`timeline-always-${event.id}`} className="text-sm text-text-primary">
-                Add to timeline
+          </div>
+        )}
+      </div>
+      
+      <div className="relative mt-4">
+        <button
+          type="button"
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className="w-full px-3 py-2 rounded-lg border surface-elevated backdrop-blur-sm flex justify-between items-center text-left"
+          style={{ color: 'var(--text-primary)', borderColor: 'var(--glass-border)', backgroundColor: 'var(--surface-elevated)' }}
+        >
+          <span>
+            {(event.timelineIds || []).length > 0
+              ? `${(event.timelineIds || []).length} timeline(s) selected`
+              : 'Add to a timeline'}
+          </span>
+          <IoChevronDown className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {isDropdownOpen && (
+          <div className="absolute w-full mt-1 bg-gray-800/80 backdrop-blur-lg border border-gray-700/50 rounded-lg shadow-xl z-10 max-h-40 overflow-y-auto">
+            {allTimelines.map(timeline => (
+              <label key={timeline.id} className="flex items-center px-3 py-2 hover:bg-white/10 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={(event.timelineIds || []).includes(timeline.id)}
+                  onChange={() => handleTimelineSelection(timeline.id)}
+                  className="w-4 h-4 text-blue-500 rounded focus:ring-blue-500 border-gray-600 bg-gray-700"
+                />
+                <span className="ml-3 text-sm text-gray-200">{timeline.name}</span>
               </label>
-            </div>
+            ))}
+             {allTimelines.length === 0 && (
+                <div className="px-3 py-2 text-sm text-gray-400">No timelines available.</div>
+            )}
           </div>
         )}
       </div>
@@ -281,4 +250,4 @@ export function EventCard({ event, onEdit, onDelete, showTimelineBadge = true, c
   );
 }
 
-export default EventCard; 
+export default EventCard;

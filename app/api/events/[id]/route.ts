@@ -75,8 +75,14 @@ export async function PUT(
       updateData.description = body.description.trim();
     }
 
-    if (body.addToTimeline !== undefined) {
-      updateData.addToTimeline = Boolean(body.addToTimeline);
+    if (body.timelineIds !== undefined) {
+      if (!Array.isArray(body.timelineIds) || !body.timelineIds.every((id: unknown) => typeof id === 'string' && id.trim().length > 0)) {
+        return NextResponse.json(
+          { error: 'timelineIds must be an array of non-empty strings' },
+          { status: 400 }
+        );
+      }
+      updateData.timelineIds = body.timelineIds;
     }
 
     // Check if there's anything to update

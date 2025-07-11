@@ -8,7 +8,6 @@ import { timelineService } from '../lib/timelineService';
 import { Timeline } from '../lib/types';
 import GlassButton from '../components/GlassButton';
 import NewTimelineModal from '../components/NewTimelineModal';
-import MainLayout from '../components/MainLayout';
 
 const TimelinesPage = () => {
   const [timelines, setTimelines] = useState<Timeline[]>([]);
@@ -48,7 +47,6 @@ const TimelinesPage = () => {
   };
 
   return (
-    <MainLayout>
     <div className="max-w-6xl mx-auto p-4 sm:p-6">
       <GlassCard hover={false}>
         <div className="p-6">
@@ -90,16 +88,15 @@ const TimelinesPage = () => {
                       <p className="text-text-secondary text-sm line-clamp-3">{timeline.description || 'No description provided.'}</p>
                     </div>
                     <div className="mt-6 flex justify-end items-center gap-2">
-                       <Link href={`/timeline/${timeline.id}/view`} passHref>
+                       <Link href={`/timeline/${timeline.id}`} passHref>
                          <GlassButton variant='ghost' size='sm' className="text-blue-500 hover:text-blue-600">
                            <IoEyeOutline />
                          </GlassButton>
                        </Link>
-                       <Link href={`/timeline/${timeline.id}/edit`} passHref>
-                         <GlassButton variant='ghost' size='sm' className="text-gray-500 hover:text-gray-600">
-                           <IoPencil />
-                         </GlassButton>
-                       </Link>
+                       {/* TODO: Add edit functionality */}
+                       <GlassButton variant='ghost' size='sm' className="text-gray-500 hover:text-gray-600">
+                         <IoPencil />
+                       </GlassButton>
                        <GlassButton variant='ghost' size='sm' onClick={() => handleDelete(timeline.id)} className="text-red-500 hover:text-red-600">
                          <IoTrashOutline />
                        </GlassButton>
@@ -121,7 +118,6 @@ const TimelinesPage = () => {
         }}
       />
     </div>
-    </MainLayout>
   );
 };
 
