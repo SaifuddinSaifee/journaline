@@ -20,7 +20,6 @@ interface DragState {
 }
 
 const DEFAULT_CARD_SPACING = 250; // Default spacing between cards
-const MIN_CARD_SPACING = 200; // Minimum spacing to prevent overlap
 const POSITION_STORAGE_KEY = 'timeline-positions';
 
 export function Timeline() {
@@ -119,7 +118,6 @@ export function Timeline() {
     // Check for collisions with each other event
     for (let i = 0; i < otherEvents.length; i++) {
       const otherItem = otherEvents[i];
-      const otherVisualIndex = otherEvents.findIndex(item => item === otherItem);
       const otherVisualSide = getVisualSide(otherItem.y, otherEvents.indexOf(otherItem));
       
       const distance = Math.abs(adjustedY - otherItem.y);
