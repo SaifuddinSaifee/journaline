@@ -59,7 +59,8 @@ export function Events() {
         console.error('Failed to load timelines:', timelineResult.error);
         setAllTimelines([]);
       } else if (timelineResult.data) {
-        setAllTimelines(timelineResult.data);
+        // Exclude archived timelines
+        setAllTimelines(timelineResult.data.filter(t => !t.isArchived));
       }
 
     } catch (err) {

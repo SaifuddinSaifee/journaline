@@ -92,7 +92,8 @@ export class TimelineModel {
     try {
       const collection = await this.getCollection();
       const documents = await collection
-        .find({})
+        // Only return timelines that are not archived by default
+        .find({ isArchived: { $ne: true } })
         .sort({ createdAt: -1 })
         .toArray();
 
@@ -156,9 +157,13 @@ export class TimelineModel {
       }
 
       const collection = await this.getCollection();
-      const result = await collection.deleteOne({ _id: new ObjectId(id) });
+      // Soft-delete (archive) the timeline instead of permanently removing it
+      const result = await collection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { isArchived: true, updatedAt: new Date() } }
+      );
 
-      return result.deletedCount === 1;
+      return result.modifiedCount === 1;
     } catch (error) {
       console.error('Error deleting timeline:', error);
       throw new Error('Failed to delete timeline');

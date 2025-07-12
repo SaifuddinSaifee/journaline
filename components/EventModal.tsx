@@ -46,7 +46,8 @@ export function EventModal({ isOpen, onClose, onSave, selectedDate }: EventModal
       const fetchTimelines = async () => {
         const { data } = await timelineService.getAllTimelines();
         if (data) {
-          setTimelines(data);
+          // Exclude archived timelines
+          setTimelines(data.filter(t => !t.isArchived));
         }
       };
       fetchTimelines();
