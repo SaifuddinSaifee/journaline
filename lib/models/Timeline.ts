@@ -26,7 +26,6 @@ export class TimelineModel {
       id: doc._id.toString(),
       name: doc.name,
       description: doc.description,
-      groupPositions: doc.groupPositions,
       groupOrder: doc.groupOrder,
       color: doc.color,
       isArchived: doc.isArchived,
@@ -49,7 +48,6 @@ export class TimelineModel {
       const document: Omit<TimelineDocument, '_id'> = {
         name: (timelineData.name ?? '').trim(),
         description: timelineData.description?.trim(),
-        groupPositions: timelineData.groupPositions ?? {},
         groupOrder: timelineData.groupOrder ?? [],
         color: timelineData.color,
         isArchived: timelineData.isArchived ?? false,
@@ -119,9 +117,6 @@ export class TimelineModel {
       }
       if (timelineData.description !== undefined) {
         updateData.description = timelineData.description.trim();
-      }
-      if (timelineData.groupPositions !== undefined) {
-        updateData.groupPositions = timelineData.groupPositions;
       }
       if (timelineData.groupOrder !== undefined) {
         updateData.groupOrder = timelineData.groupOrder;

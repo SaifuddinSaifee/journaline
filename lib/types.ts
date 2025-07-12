@@ -72,7 +72,6 @@ export interface TimelineDocument {
   name: string;
   description?: string;
 
-  groupPositions: Record<string, number>;
   groupOrder: string[];
 
   color?: string;
@@ -89,7 +88,6 @@ export interface TimelineDocument {
 export interface TimelineFormData {
   name?: string;
   description?: string;
-  groupPositions?: Record<string, number>;
   groupOrder?: string[];
   color?: string;
   isArchived?: boolean;
@@ -101,7 +99,6 @@ export interface TimelineResponse {
   name: string;
   description?: string;
 
-  groupPositions: Record<string, number>;
   groupOrder: string[];
 
   color?: string;
