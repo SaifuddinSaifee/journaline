@@ -66,6 +66,14 @@ export type Event = EventResponse;
 // Timeline Types
 // ================================================================
 
+export type SortField = 'date' | 'createdAt' | 'updatedAt';
+export type SortOrder = 'asc' | 'desc';
+
+export interface SortPreference {
+  field: SortField;
+  order: SortOrder;
+}
+
 export interface TimelineDocument {
   _id: ObjectId;
 
@@ -73,6 +81,7 @@ export interface TimelineDocument {
   description?: string;
 
   groupOrder: string[];
+  sortPreference?: SortPreference;
 
   color?: string;
   isArchived?: boolean;
@@ -89,6 +98,7 @@ export interface TimelineFormData {
   name?: string;
   description?: string;
   groupOrder?: string[];
+  sortPreference?: SortPreference;
   color?: string;
   isArchived?: boolean;
   publish?: boolean;
@@ -100,6 +110,7 @@ export interface TimelineResponse {
   description?: string;
 
   groupOrder: string[];
+  sortPreference?: SortPreference;
 
   color?: string;
   isArchived?: boolean;

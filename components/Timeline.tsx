@@ -9,7 +9,6 @@ import React, {
 import {
   IoTimeOutline,
   IoCalendarOutline,
-  IoRefreshOutline,
 } from "react-icons/io5";
 import {
   format,
@@ -18,13 +17,14 @@ import {
 } from "date-fns";
 import { motion, Reorder, AnimatePresence } from "framer-motion";
 import { useTimelineEvents } from "../lib/hooks";
-import { Event, Timeline as TimelineType } from "../lib/types";
+import { Event, Timeline as TimelineType, SortPreference } from "../lib/types";
 import { eventService } from "../lib/eventService";
 import { timelineService } from '../lib/timelineService';
 import GlassCard from "./GlassCard";
 import TimelineCard from "./TimelineCard";
 import DateRangeSelector, { DateRange } from "./DateRangeSelector";
 import GroupBySelector, { Grouping } from "./GroupBySelector";
+import SortSelector from "./SortSelector";
 
 interface TimelineProps {
   timeline: TimelineType;
@@ -42,6 +42,11 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
   // View-transition flag – enables fancy animation & prevents flicker
   const [isTransitioning, setIsTransitioning] = useState(false);
   
+  // Sort preference state
+  const [sortPreference, setSortPreference] = useState<SortPreference>(
+    timeline.sortPreference || { field: 'date', order: 'desc' }
+  );
+  
   // Use timelineId from props to fetch events
   const { events, loading, error, refetch } = useTimelineEvents({
     timelineId: timeline.id,
@@ -52,23 +57,29 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
   // Order of groups (dates)
   const [groupOrder, setGroupOrder] = useState<string[]>(timeline.groupOrder || []);
   
-  const [isResetting, setIsResetting] = useState(false);
-
-  // Moving effects below data calculations to avoid "use before define" lint errors.
+  // Sort events based on sortPreference
+  const sortEvents = useCallback((eventsToSort: Event[]) => {
+    return [...eventsToSort].sort((a, b) => {
+      const aValue = new Date(a[sortPreference.field]).getTime();
+      const bValue = new Date(b[sortPreference.field]).getTime();
+      return sortPreference.order === 'desc' ? bValue - aValue : aValue - bValue;
+    });
+  }, [sortPreference]);
 
   // Group events by date
   const groupsByDate = useMemo(() => {
     if (!timelineEvents) return new Map();
 
+    const sortedEvents = sortEvents(timelineEvents);
     const groups: Record<string, Event[]> = {};
-    timelineEvents.forEach(event => {
+    sortedEvents.forEach(event => {
       const key = getGroupKey(new Date(event.date), grouping);
       if (!groups[key]) groups[key] = [];
       groups[key].push(event);
     });
 
     return new Map(Object.entries(groups).map(([key, events]) => [key, events]));
-  }, [timelineEvents, grouping]);
+  }, [timelineEvents, grouping, sortEvents]);
 
   // Create the ordered array of groups for rendering
   const orderedGroups = useMemo(() => {
@@ -226,14 +237,40 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
     setDateRange(newRange);
   };
 
-  const handleResetOrder = useCallback(async () => {
-    setIsResetting(true);
-    const chronologicalOrder = Array.from(groupsByDate.keys())
-      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-    setGroupOrder(chronologicalOrder);
-    await persistOrder(chronologicalOrder);
-    setIsResetting(false);
-  }, [groupsByDate, persistOrder]);
+  // Handle sort preference change
+  const handleSortChange = (newSortPreference: SortPreference) => {
+    setSortPreference(newSortPreference);
+  };
+
+  // Handle sort apply and refresh view
+  const handleSortApply = async (newSortPreference: SortPreference) => {
+    setIsTransitioning(true);
+    
+    // Update sort preference in the database
+    await timelineService.updateTimeline(timeline.id, {
+      sortPreference: newSortPreference,
+    });
+
+    // Sort events based on new preference
+    const sortedEvents = sortEvents(timelineEvents);
+    setTimelineEvents(sortedEvents);
+
+    // Update group order based on sorted events
+    const newOrder = Array.from(new Set(sortedEvents.map(event => 
+      getGroupKey(new Date(event.date), grouping)
+    )));
+    
+    // Update group order in state and database
+    setGroupOrder(newOrder);
+    await timelineService.updateTimeline(timeline.id, {
+      groupOrder: newOrder,
+    });
+
+    // Allow animation to complete
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 100);
+  };
 
   // Height now determined by content flow
 
@@ -301,21 +338,11 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
               </div>
               <div className="flex items-center gap-3">
                 {mode === 'edit' && (
-                  <button
-                    onClick={handleResetOrder}
-                    disabled={isResetting}
-                    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all duration-200 ${
-                      isResetting
-                        ? 'text-gray-400 dark:text-gray-500 bg-gray-100/50 dark:bg-gray-700/50 border-gray-200/30 dark:border-gray-600/30 cursor-not-allowed'
-                        : 'text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border-gray-200/50 dark:border-gray-700/50 hover:border-blue-300/50 dark:hover:border-blue-600/50 hover:shadow-md cursor-pointer'
-                    } rounded-lg border`}
-                    title={'Reset all pill positions and order to default'}
-                  >
-                    <IoRefreshOutline
-                      className={`w-4 h-4 ${isResetting ? 'animate-spin' : ''}`}
-                    />
-                    {isResetting ? 'Resetting...' : 'Reset Layout'}
-                  </button>
+                  <SortSelector
+                    value={sortPreference}
+                    onChange={handleSortChange}
+                    onApply={handleSortApply}
+                  />
                 )}
                 <GroupBySelector value={grouping} onChange={handleGroupingChange} />
                 <DateRangeSelector
@@ -403,7 +430,7 @@ const GroupContent: React.FC<GroupContentProps> = ({ label, events, isEven, mode
   return (
     <div>
       {/* Date pill (desktop) */}
-      <div className="hidden md:block absolute left-1/2 top-4 transform -translate-x-1/2 z-20">
+      <div className="hidden md:block absolute left-1/2 top-4 transform -translate-x-1/2 z-[40]">
         <div
           className={`bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 select-none transition-all duration-200 ${mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''}`}
         >
@@ -415,7 +442,7 @@ const GroupContent: React.FC<GroupContentProps> = ({ label, events, isEven, mode
       </div>
 
       {/* Date pill (mobile) */}
-      <div className="md:hidden absolute left-2 top-4 transform -translate-x-1/2 z-20">
+      <div className="md:hidden absolute left-2 top-4 transform -translate-x-1/2 z-[40]">
         <div
           className={`bg-white dark:bg-gray-800 px-2 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 select-none transition-all duration-200 ${mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''}`}
         >
@@ -426,12 +453,12 @@ const GroupContent: React.FC<GroupContentProps> = ({ label, events, isEven, mode
       </div>
 
       {/* Mobile connecting line */}
-      <div className="md:hidden absolute left-8 top-6 transform -translate-y-1/2 w-8 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-10" />
+      <div className="md:hidden absolute left-8 top-6 transform -translate-y-1/2 w-8 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-[39]" />
 
       {/* Events */}
-      <div className={`z-9999 md:flex ${isEven ? 'md:justify-start' : 'md:justify-end'} ml-14 md:ml-0`}>
-        <div className={`z-9999 w-full md:max-w-md ${isEven ? 'md:pr-8' : 'md:pl-8'} relative`}>
-          <div className="space-y-4 z-9999">
+      <div className={`z-[30] md:flex ${isEven ? 'md:justify-start' : 'md:justify-end'} ml-14 md:ml-0`}>
+        <div className={`z-[30] w-full md:max-w-md ${isEven ? 'md:pr-8' : 'md:pl-8'} relative`}>
+          <div className="space-y-4 z-[30]">
             {events.map(event => (
               <TimelineCard
                 key={event.id}

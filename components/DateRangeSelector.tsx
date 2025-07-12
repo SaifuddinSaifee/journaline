@@ -143,7 +143,7 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
   };
 
   return (
-    <div className={cn('relative z-[10000]', className)}>
+    <div className={cn('relative z-[50]', className)}>
       {/* Trigger Button */}
       <GlassButton
         variant="secondary"
@@ -157,7 +157,7 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 z-[10000] w-80 max-w-[calc(100vw-2rem)]">
+        <div className="absolute top-full right-0 mt-2 z-[51] w-80 max-w-[calc(100vw-2rem)]">
           <GlassCard variant="default" className="p-4 shadow-xl backdrop-blur-md bg-white/90 dark:bg-gray-800/90 border border-white/20 dark:border-gray-700/30">
             <div className="space-y-4">
               {/* Quick Select Pills */}
@@ -225,7 +225,7 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
                   </div>
                   <div className="flex justify-end gap-2">
                     <GlassButton
-                      variant="ghost"
+                      variant="warning"
                       size="sm"
                       onClick={handleClearRange}
                       className="backdrop-blur-sm bg-white/60 dark:bg-gray-700/60 hover:bg-white/80 dark:hover:bg-gray-700/80"
@@ -233,7 +233,7 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
                       Clear
                     </GlassButton>
                     <GlassButton
-                      variant="ghost"
+                      variant="secondary"
                       size="sm"
                       onClick={() => setIsOpen(false)}
                       className="backdrop-blur-sm bg-white/60 dark:bg-gray-700/60 hover:bg-white/80 dark:hover:bg-gray-700/80"
@@ -241,7 +241,7 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
                       Cancel
                     </GlassButton>
                     <GlassButton
-                      variant="secondary"
+                      variant="primary"
                       size="sm"
                       onClick={handleCustomDateApply}
                       disabled={!customStartDate || !customEndDate}
@@ -260,7 +260,7 @@ export function DateRangeSelector({ dateRange, onDateRangeChange, className }: D
       {/* Backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-[10000]"
+          className="fixed inset-0 z-[49]"
           onClick={() => setIsOpen(false)}
         />
       )}

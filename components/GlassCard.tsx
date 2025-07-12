@@ -40,7 +40,7 @@ export function GlassCard({
   children,
   variant = 'default',
   className,
-  hover = true,
+  hover = false,
   padding = 'md',
   radius = 'md',
   ...props
