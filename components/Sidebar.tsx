@@ -77,7 +77,6 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Overlay for mobile when sidebar is open */}
       {!isCollapsed && (
         <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 lg:hidden"
           onClick={toggleSidebar}
         />
       )}

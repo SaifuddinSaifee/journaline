@@ -1,5 +1,5 @@
-import Events from '../components/Events';
-import MainLayout from '../components/MainLayout';
+import Events from '../../components/Events';
+import MainLayout from '../../components/MainLayout';
 
 export default function EventsPage() {
   return (

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TimelineModel } from '@/app/lib/models/Timeline';
+import { TimelineModel } from '@/lib/models/Timeline';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
