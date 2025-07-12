@@ -2,7 +2,7 @@
 User can have week/month view, where user can club the events of that date
 Normal user formatting, bold, italics, underline, emojis, we want PANEL for this
 Make a copy of the timeline, like a fork, 
-Share timeline.
+Share timeline. Here user can share a view only timeline to their managers or anyone
 
 
 # Bugs

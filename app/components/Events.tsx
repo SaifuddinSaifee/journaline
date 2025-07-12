@@ -158,18 +158,23 @@ export function Events() {
     setSelectedDate(null);
   };
 
-  // Group events by date
+  // Group events by month-year
   const groupedEvents = events.reduce((acc, event) => {
-    const dateKey = format(new Date(event.date), 'yyyy-MM-dd');
-    if (!acc[dateKey]) {
-      acc[dateKey] = [];
+    const monthYearKey = format(new Date(event.date), 'yyyy-MM');
+    if (!acc[monthYearKey]) {
+      acc[monthYearKey] = [];
     }
-    acc[dateKey].push(event);
+    acc[monthYearKey].push(event);
     return acc;
   }, {} as Record<string, Event[]>);
 
-  // Sort dates in descending order (most recent first)
-  const sortedDates = Object.keys(groupedEvents).sort((a, b) => b.localeCompare(a));
+  // Sort months in descending order (most recent first)
+  const sortedMonths = Object.keys(groupedEvents).sort((a, b) => b.localeCompare(a));
+
+  // Sort events within each month in reverse chronological order (newest first)
+  sortedMonths.forEach(monthKey => {
+    groupedEvents[monthKey].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  });
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -221,16 +226,16 @@ export function Events() {
               </p>
             </div>
           ) : (
-            <div className="space-y-6">
-              {sortedDates.map(dateKey => (
-                <div key={dateKey}>
-                  <div className="mb-4">
-                    <h3 className="text-lg font-semibold text-text-primary border-b border-gray-200/30 dark:border-gray-700/30 pb-2">
-                      {format(new Date(dateKey), 'MMMM d, yyyy')}
+            <div className="space-y-8">
+              {sortedMonths.map(monthKey => (
+                <div key={monthKey}>
+                  <div className="mb-6">
+                    <h3 className="text-xl font-bold text-text-primary border-b border-gray-200/30 dark:border-gray-700/30 pb-3">
+                      {format(new Date(monthKey + '-01'), 'MMMM yyyy')}
                     </h3>
                   </div>
-                  <div className="space-y-3">
-                    {groupedEvents[dateKey].map(event => (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {groupedEvents[monthKey].map(event => (
                       <EventCard
                         key={event.id}
                         event={event}
