@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Timeline as TimelineType } from "../../../lib/types";
-import { timelineService } from "../../../lib/timelineService";
-import { Timeline } from "../../../components/Timeline";
-import GlassCard from "../../../components/GlassCard";
-import MainLayout from "../../../components/MainLayout";
+import { Timeline as TimelineType } from "../../../../lib/types";
+import { timelineService } from "../../../../lib/timelineService";
+import { Timeline } from "../../../../components/Timeline";
+import GlassCard from "../../../../components/GlassCard";
+import MainLayout from "../../../../components/MainLayout";
 
 const DynamicTimelineEditPage = () => {
   const params = useParams();

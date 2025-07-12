@@ -3,12 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { IoAdd, IoEyeOutline, IoPencil, IoTrashOutline } from 'react-icons/io5';
-import GlassCard from '../components/GlassCard';
-import { timelineService } from '../lib/timelineService';
-import { Timeline } from '../lib/types';
-import GlassButton from '../components/GlassButton';
-import NewTimelineModal from '../components/NewTimelineModal';
-import MainLayout from '../components/MainLayout';
+import GlassCard from '../../components/GlassCard';
+import { timelineService } from '../../lib/timelineService';
+import { Timeline } from '../../lib/types';
+import GlassButton from '../../components/GlassButton';
+import NewTimelineModal from '../../components/NewTimelineModal';
+import MainLayout from '../../components/MainLayout';
 
 const TimelinesPage = () => {
   const [timelines, setTimelines] = useState<Timeline[]>([]);
