@@ -195,7 +195,7 @@ export function TimelineCard({ event, className, onEdit, onDelete, mode = 'view'
             </div>
           </div>
         ) : (
-          <h3 className="font-bold text-text-primary text-lg leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+          <h3 className="font-bold text-text-primary text-lg leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors break-words whitespace-pre-wrap">
             {event.title}
           </h3>
         )}
@@ -232,25 +232,25 @@ export function TimelineCard({ event, className, onEdit, onDelete, mode = 'view'
             {/* Timeline selection UI omitted for brevity */}
           </div>
         ) : (
-          <div className="text-text-secondary text-sm leading-relaxed">
+          <div className="text-text-secondary text-sm leading-relaxed break-words whitespace-pre-wrap">
             <ReactMarkdown 
               components={{
                 // Customize markdown components for timeline cards
-                h1: ({ children }) => <h1 className="text-lg font-bold mb-2 text-text-primary">{children}</h1>,
-                h2: ({ children }) => <h2 className="text-base font-semibold mb-2 text-text-primary">{children}</h2>,
-                h3: ({ children }) => <h3 className="text-sm font-medium mb-1 text-text-primary">{children}</h3>,
-                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
-                li: ({ children }) => <li className="text-sm">{children}</li>,
-                code: ({ children }) => <code className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                h1: ({ children }) => <h1 className="text-lg font-bold mb-2 text-text-primary break-words">{children}</h1>,
+                h2: ({ children }) => <h2 className="text-base font-semibold mb-2 text-text-primary break-words">{children}</h2>,
+                h3: ({ children }) => <h3 className="text-sm font-medium mb-1 text-text-primary break-words">{children}</h3>,
+                p: ({ children }) => <p className="mb-2 last:mb-0 break-words">{children}</p>,
+                ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1 break-words">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1 break-words">{children}</ol>,
+                li: ({ children }) => <li className="text-sm break-words">{children}</li>,
+                code: ({ children }) => <code className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-xs font-mono break-words">{children}</code>,
                 blockquote: ({ children }) => (
-                  <blockquote className="border-l-3 border-blue-500 pl-3 italic text-text-muted">
+                  <blockquote className="border-l-3 border-blue-500 pl-3 italic text-text-muted break-words">
                     {children}
                   </blockquote>
                 ),
-                strong: ({ children }) => <strong className="font-semibold text-text-primary">{children}</strong>,
-                em: ({ children }) => <em className="italic">{children}</em>,
+                strong: ({ children }) => <strong className="font-semibold text-text-primary break-words">{children}</strong>,
+                em: ({ children }) => <em className="italic break-words">{children}</em>,
               }}
             >
               {isExpanded ? event.description : truncatedDescription}
