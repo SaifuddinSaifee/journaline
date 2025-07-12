@@ -113,6 +113,7 @@ export function Events() {
       const result = await eventService.updateEvent(updatedEvent.id, {
         title: updatedEvent.title,
         description: updatedEvent.description,
+        date: updatedEvent.date,
         timelineIds: updatedEvent.timelineIds,
       });
 

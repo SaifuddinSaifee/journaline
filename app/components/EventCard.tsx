@@ -7,7 +7,7 @@ import { cn } from '../lib/utils';
 import GlassCard from './GlassCard';
 import GlassButton from './GlassButton';
 import { Event, Timeline } from '../lib/types';
-import { IoTimeOutline, IoCheckmark, IoClose, IoTrash, IoChevronDown } from 'react-icons/io5';
+import { IoTimeOutline, IoCheckmark, IoClose, IoTrash, IoChevronDown, IoCalendarOutline } from 'react-icons/io5';
 import { FaPencilAlt } from 'react-icons/fa';
 
 interface EventCardProps {
@@ -20,6 +20,7 @@ interface EventCardProps {
 
 export function EventCard({ event, onEdit, onDelete, className, allTimelines }: EventCardProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isDateEditing, setIsDateEditing] = useState(false);
   const [editData, setEditData] = useState({
     title: event.title,
     description: event.description,
@@ -65,7 +66,26 @@ export function EventCard({ event, onEdit, onDelete, className, allTimelines }: 
       description: event.description,
     });
     setIsEditing(false);
+    setIsDateEditing(false);
   }, [event.title, event.description]);
+
+  const handleDateEdit = () => {
+    setIsDateEditing(true);
+  };
+
+  const handleDateChange = (newDate: string) => {
+    const updatedEvent: Event = {
+      ...event,
+      date: newDate,
+      updatedAt: new Date().toISOString(),
+    };
+    onEdit?.(updatedEvent);
+    setIsDateEditing(false);
+  };
+
+  const handleDateCancel = () => {
+    setIsDateEditing(false);
+  };
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this event?')) {
@@ -127,9 +147,27 @@ export function EventCard({ event, onEdit, onDelete, className, allTimelines }: 
               {event.title}
             </h3>
           )}
-          <p className="text-sm text-text-muted">
-            {format(new Date(event.date), 'MMMM d, yyyy')}
-          </p>
+          {isDateEditing ? (
+            <div className="flex items-center space-x-2">
+              <input
+                type="date"
+                value={event.date.split('T')[0]} // Convert ISO date to YYYY-MM-DD format
+                onChange={(e) => {
+                  const newDate = new Date(e.target.value);
+                  newDate.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+                  handleDateChange(newDate.toISOString());
+                }}
+                className="px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              />
+              <GlassButton variant="ghost" size="sm" onClick={handleDateCancel} title="Cancel">
+                <IoClose className="w-4 h-4" />
+              </GlassButton>
+            </div>
+          ) : (
+            <p className="text-sm text-text-muted">
+              {format(new Date(event.date), 'MMMM d, yyyy')}
+            </p>
+          )}
           {associatedTimelines.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
               {associatedTimelines.map(timeline => (
@@ -154,6 +192,9 @@ export function EventCard({ event, onEdit, onDelete, className, allTimelines }: 
             </div>
           ) : (
             <div className="flex space-x-1">
+              <GlassButton variant="ghost" size="sm" onClick={handleDateEdit} title="Change Date">
+                <IoCalendarOutline className="w-5 h-5" />
+              </GlassButton>
               <GlassButton variant="ghost" size="sm" onClick={handleEdit} title="Edit">
                 <FaPencilAlt className="w-5 h-5" />
               </GlassButton>

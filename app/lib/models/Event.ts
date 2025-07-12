@@ -129,6 +129,9 @@ export class EventModel {
       if (eventData.timelineIds !== undefined) {
         updateData.timelineIds = eventData.timelineIds.map(id => new ObjectId(id));
       }
+      if (eventData.date !== undefined) {
+        updateData.date = eventData.date;
+      }
 
       const result = await collection.findOneAndUpdate(
         { _id: new ObjectId(id) },

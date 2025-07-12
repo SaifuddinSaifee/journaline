@@ -85,6 +85,24 @@ export async function PUT(
       updateData.timelineIds = body.timelineIds;
     }
 
+    if (body.date !== undefined) {
+      if (typeof body.date !== 'string' || !body.date.trim()) {
+        return NextResponse.json(
+          { error: 'Date must be a non-empty string' },
+          { status: 400 }
+        );
+      }
+      // Validate date format (ISO string)
+      const dateObj = new Date(body.date);
+      if (isNaN(dateObj.getTime())) {
+        return NextResponse.json(
+          { error: 'Date must be a valid ISO date string' },
+          { status: 400 }
+        );
+      }
+      updateData.date = body.date;
+    }
+
     // Check if there's anything to update
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(

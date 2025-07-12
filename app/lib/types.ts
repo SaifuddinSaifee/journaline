@@ -14,6 +14,7 @@ export interface Event {
 export interface EventFormData {
   title: string;
   description: string;
+  date?: string; // Optional for updates, required for creation
   timelineIds: string[]; // Replaces addToTimeline
 }
 
