@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import GlassButton from './GlassButton';
 import Calendar from './Calendar';
 import { cn } from '../lib/utils';
-import { useSidebar } from './MainLayout';
+import { useSidebar } from '../lib/hooks/useSidebar';
 import { IoChevronBack } from 'react-icons/io5';
 
 interface SidebarProps {

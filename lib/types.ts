@@ -1,82 +1,116 @@
 import { ObjectId } from 'mongodb';
 
-export interface Event {
-  _id?: ObjectId; // MongoDB ObjectId (for new events)
-  id: string; // UUID (for existing events) or string representation of ObjectId
+// ================================================================
+// Event Types
+// ================================================================
+
+export interface EventDocument {
+  _id: ObjectId;
+
   title: string;
   description: string;
-  date: string; // ISO date string
-  timelineIds: string[]; // Replaces addToTimeline
-  createdAt: string;
-  updatedAt: string;
+  date: Date;
+
+  timelineIds: ObjectId[];
+
+  tags?: string[];
+  location?: string;
+  metadata?: Record<string, unknown>;
+
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date;
+
+  createdBy?: ObjectId;
+  updatedBy?: ObjectId;
 }
 
+// Data received from the client when creating/updating an event
 export interface EventFormData {
   title: string;
   description: string;
-  date?: string; // Optional for updates, required for creation
-  timelineIds: string[]; // Replaces addToTimeline
+  date?: string; // ISO 8601 string – required on create, optional on update
+
+  timelineIds: string[];
+
+  tags?: string[];
+  location?: string;
+  metadata?: Record<string, unknown>;
 }
 
-// MongoDB document interface (what gets stored in the database)
-export interface EventDocument {
-  _id: ObjectId;
-  title: string;
-  description: string;
-  date: string;
-  timelineIds: ObjectId[]; // Replaces addToTimeline
-  createdAt: string;
-  updatedAt: string;
-}
-
-// API response interface (what gets returned from API)
+// Data sent back to the client (strings for easy JSON serialisation)
 export interface EventResponse {
   id: string;
   title: string;
   description: string;
   date: string;
-  timelineIds: string[]; // Replaces addToTimeline
+
+  timelineIds: string[];
+
+  tags?: string[];
+  location?: string;
+  metadata?: Record<string, unknown>;
+
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
+
+  createdBy?: string;
+  updatedBy?: string;
 }
 
-// =================================================================
+// Convenience alias to maintain backward-compatibility with existing UI code
+export type Event = EventResponse;
+
+// ================================================================
 // Timeline Types
-// =================================================================
-
-export interface Timeline {
-  id: string;
-  name: string;
-  description?: string;
-  groupPositions: Record<string, number>;
-  groupOrder: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface TimelineFormData {
-  name: string;
-  description?: string;
-  groupPositions?: Record<string, number>;
-  groupOrder?: string[];
-}
+// ================================================================
 
 export interface TimelineDocument {
   _id: ObjectId;
+
   name: string;
   description?: string;
-  groupPositions: Record<string, number>;
+
   groupOrder: string[];
-  createdAt: string;
-  updatedAt: string;
+
+  color?: string;
+  isArchived?: boolean;
+  publish: boolean;
+
+  createdAt: Date;
+  updatedAt: Date;
+
+  createdBy?: ObjectId;
+  updatedBy?: ObjectId;
+}
+
+export interface TimelineFormData {
+  name?: string;
+  description?: string;
+  groupOrder?: string[];
+  color?: string;
+  isArchived?: boolean;
+  publish?: boolean;
 }
 
 export interface TimelineResponse {
   id: string;
   name: string;
   description?: string;
-  groupPositions: Record<string, number>;
+
   groupOrder: string[];
+
+  color?: string;
+  isArchived?: boolean;
+  publish?: boolean;
+
   createdAt: string;
   updatedAt: string;
-} 
+
+  createdBy?: string;
+  updatedBy?: string;
+}
+
+// Convenience alias used in the UI layer
+export type Timeline = TimelineResponse; 

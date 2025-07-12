@@ -11,44 +11,66 @@ export class EventModel {
       await mongodb.connect();
       const db = mongodb.getDb();
       this.collection = db.collection<EventDocument>('events');
-      
-      // Create indexes for better performance
+
+      // Useful indexes
       await this.collection.createIndex({ date: 1 });
-      await this.collection.createIndex({ timelineIds: 1 }); // Changed from addToTimeline
+      await this.collection.createIndex({ timelineIds: 1 });
       await this.collection.createIndex({ createdAt: -1 });
     }
     return this.collection;
   }
 
+  /* -----------------------------------------------------------------
+   * Helpers
+   * -----------------------------------------------------------------*/
   static documentToResponse(doc: EventDocument): EventResponse {
     return {
       id: doc._id.toString(),
       title: doc.title,
       description: doc.description,
-      date: doc.date,
-      timelineIds: (doc.timelineIds ?? []).map(id => id.toString()), // Safely convert ObjectIds to strings
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
+      date: doc.date.toISOString(),
+
+      timelineIds: doc.timelineIds.map(id => id.toString()),
+
+      tags: doc.tags,
+      location: doc.location,
+      metadata: doc.metadata,
+
+      createdAt: doc.createdAt.toISOString(),
+      updatedAt: doc.updatedAt.toISOString(),
+      deletedAt: doc.deletedAt ? doc.deletedAt.toISOString() : undefined,
+
+      createdBy: doc.createdBy?.toString(),
+      updatedBy: doc.updatedBy?.toString(),
     };
   }
 
+  /* -----------------------------------------------------------------
+   * CRUD
+   * -----------------------------------------------------------------*/
   static async create(eventData: EventFormData & { date: string }): Promise<EventResponse> {
     try {
       const collection = await this.getCollection();
-      const now = new Date().toISOString();
-      
+      const now = new Date();
+
       const document: Omit<EventDocument, '_id'> = {
         title: eventData.title.trim(),
         description: eventData.description.trim(),
-        date: eventData.date,
-        timelineIds: eventData.timelineIds.map(id => new ObjectId(id)), // Convert strings to ObjectIds
+        date: new Date(eventData.date),
+
+        timelineIds: eventData.timelineIds.map(id => new ObjectId(id)),
+
+        tags: eventData.tags,
+        location: eventData.location,
+        metadata: eventData.metadata,
+
         createdAt: now,
         updatedAt: now,
       };
 
       const result = await collection.insertOne(document as EventDocument);
       const created = await collection.findOne({ _id: result.insertedId });
-      
+
       if (!created) {
         throw new Error('Failed to retrieve created event');
       }
@@ -68,7 +90,7 @@ export class EventModel {
 
       const collection = await this.getCollection();
       const document = await collection.findOne({ _id: new ObjectId(id) });
-      
+
       return document ? this.documentToResponse(document) : null;
     } catch (error) {
       console.error('Error finding event by ID:', error);
@@ -83,7 +105,7 @@ export class EventModel {
         .find({})
         .sort({ createdAt: -1 })
         .toArray();
-      
+
       return documents.map(doc => this.documentToResponse(doc));
     } catch (error) {
       console.error('Error finding all events:', error);
@@ -101,7 +123,7 @@ export class EventModel {
         .find({ timelineIds: new ObjectId(timelineId) })
         .sort({ date: -1 })
         .toArray();
-      
+
       return documents.map(doc => this.documentToResponse(doc));
     } catch (error) {
       console.error('Error finding events by timeline ID:', error);
@@ -117,7 +139,7 @@ export class EventModel {
 
       const collection = await this.getCollection();
       const updateData: Partial<EventDocument> = {
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       };
 
       if (eventData.title !== undefined) {
@@ -130,7 +152,16 @@ export class EventModel {
         updateData.timelineIds = eventData.timelineIds.map(id => new ObjectId(id));
       }
       if (eventData.date !== undefined) {
-        updateData.date = eventData.date;
+        updateData.date = new Date(eventData.date);
+      }
+      if (eventData.tags !== undefined) {
+        updateData.tags = eventData.tags;
+      }
+      if (eventData.location !== undefined) {
+        updateData.location = eventData.location;
+      }
+      if (eventData.metadata !== undefined) {
+        updateData.metadata = eventData.metadata;
       }
 
       const result = await collection.findOneAndUpdate(
@@ -154,7 +185,7 @@ export class EventModel {
 
       const collection = await this.getCollection();
       const result = await collection.deleteOne({ _id: new ObjectId(id) });
-      
+
       return result.deletedCount === 1;
     } catch (error) {
       console.error('Error deleting event:', error);
@@ -165,16 +196,19 @@ export class EventModel {
   static async findByDateRange(startDate: string, endDate: string): Promise<EventResponse[]> {
     try {
       const collection = await this.getCollection();
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
       const documents = await collection
         .find({
           date: {
-            $gte: startDate,
-            $lte: endDate,
+            $gte: start,
+            $lte: end,
           },
         })
         .sort({ date: -1 })
         .toArray();
-      
+
       return documents.map(doc => this.documentToResponse(doc));
     } catch (error) {
       console.error('Error finding events by date range:', error);

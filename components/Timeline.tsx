@@ -3,7 +3,6 @@
 import React, {
   useState,
   useEffect,
-  useRef,
   useCallback,
   useMemo,
 } from "react";
@@ -12,8 +11,12 @@ import {
   IoCalendarOutline,
   IoRefreshOutline,
 } from "react-icons/io5";
-import { format } from "date-fns";
-import { motion } from "framer-motion";
+import {
+  format,
+  startOfWeek,
+  differenceInCalendarDays,
+} from "date-fns";
+import { motion, Reorder, AnimatePresence } from "framer-motion";
 import { useTimelineEvents } from "../lib/hooks";
 import { Event, Timeline as TimelineType } from "../lib/types";
 import { eventService } from "../lib/eventService";
@@ -21,18 +24,7 @@ import { timelineService } from '../lib/timelineService';
 import GlassCard from "./GlassCard";
 import TimelineCard from "./TimelineCard";
 import DateRangeSelector, { DateRange } from "./DateRangeSelector";
-
-interface DragState {
-  isDragging: boolean;
-  groupId: string | null;
-  startY: number;
-  startScrollY: number;
-  startCustomY: number;
-  currentY: number;
-}
-
-const DEFAULT_GROUP_SPACING = 500;
-const VERTICAL_PADDING = 50;
+import GroupBySelector, { Grouping } from "./GroupBySelector";
 
 interface TimelineProps {
   timeline: TimelineType;
@@ -44,6 +36,11 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
     startDate: null,
     endDate: null,
   });
+
+  // Grouping mode state
+  const [grouping, setGrouping] = useState<Grouping>("daily");
+  // View-transition flag – enables fancy animation & prevents flicker
+  const [isTransitioning, setIsTransitioning] = useState(false);
   
   // Use timelineId from props to fetch events
   const { events, loading, error, refetch } = useTimelineEvents({
@@ -52,44 +49,26 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
   });
 
   const [timelineEvents, setTimelineEvents] = useState<Event[]>([]);
-  
-  // State for visual order and positions of groups, initialized from props
+  // Order of groups (dates)
   const [groupOrder, setGroupOrder] = useState<string[]>(timeline.groupOrder || []);
-  const [groupPositions, setGroupPositions] = useState<Record<string, number>>(
-    timeline.groupPositions || {}
-  );
   
-  const [dragState, setDragState] = useState<DragState>({
-    isDragging: false,
-    groupId: null,
-    startY: 0,
-    startScrollY: 0,
-    startCustomY: 0,
-    currentY: 0,
-  });
   const [isResetting, setIsResetting] = useState(false);
-  
-  const timelineRef = useRef<HTMLDivElement>(null);
-  const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Moving effects below data calculations to avoid "use before define" lint errors.
 
   // Group events by date
   const groupsByDate = useMemo(() => {
     if (!timelineEvents) return new Map();
-    
-    const groups: Record<string, Event[]> = timelineEvents.reduce(
-      (acc, event) => {
-        const eventDate = format(new Date(event.date), 'yyyy-MM-dd');
-        if (!acc[eventDate]) {
-          acc[eventDate] = [];
-        }
-        acc[eventDate].push(event);
-        return acc;
-      },
-      {} as Record<string, Event[]>
-    );
 
-    return new Map(Object.entries(groups).map(([date, events]) => [date, events]));
-  }, [timelineEvents]);
+    const groups: Record<string, Event[]> = {};
+    timelineEvents.forEach(event => {
+      const key = getGroupKey(new Date(event.date), grouping);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(event);
+    });
+
+    return new Map(Object.entries(groups).map(([key, events]) => [key, events]));
+  }, [timelineEvents, grouping]);
 
   // Create the ordered array of groups for rendering
   const orderedGroups = useMemo(() => {
@@ -105,6 +84,96 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
       .filter(Boolean) as { date: string, events: Event[] }[];
   }, [groupOrder, groupsByDate]);
 
+  // When the user switches grouping views (isTransitioning is true),
+  // we should maintain the saved order from the database
+  useEffect(() => {
+    if (!isTransitioning) return;
+    
+    // Get all valid dates from groupsByDate
+    const validDates = Array.from(groupsByDate.keys());
+    
+    if (timeline.groupOrder && timeline.groupOrder.length > 0) {
+      // Filter the saved order to only include dates that exist in current view
+      const validSavedOrder = timeline.groupOrder.filter(date => validDates.includes(date));
+      
+      // Add any new dates that aren't in the saved order
+      const newDates = validDates.filter(date => !validSavedOrder.includes(date));
+      const newDatesSorted = newDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+      
+      // Combine saved order with new dates
+      setGroupOrder([...validSavedOrder, ...newDatesSorted]);
+    } else {
+      // If no saved order exists, fall back to chronological
+      const chronologicalOrder = validDates
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+      setGroupOrder(chronologicalOrder);
+    }
+  }, [isTransitioning, groupsByDate, timeline.groupOrder]);
+
+  // Turn off transition flag once new ordered groups are ready
+  useEffect(() => {
+    if (isTransitioning && orderedGroups.length > 0) {
+      setIsTransitioning(false);
+    }
+  }, [orderedGroups, isTransitioning]);
+
+  // Handle grouping changes with transition trigger
+  const handleGroupingChange = (newGrouping: Grouping) => {
+    if (newGrouping === grouping) return;
+    setIsTransitioning(true);
+    setGrouping(newGrouping);
+  };
+
+  const getFirstMondayOfYear = (year: number) => {
+    const jan1 = new Date(year, 0, 1);
+    const day = jan1.getDay(); // 0-Sun, 1-Mon
+    const offset = (8 - day) % 7;
+    return new Date(year, 0, 1 + offset);
+  };
+
+  const getWeekNumberCustom = (date: Date) => {
+    const firstMonday = getFirstMondayOfYear(date.getFullYear());
+    const start = startOfWeek(date, { weekStartsOn: 1 });
+    const diff = differenceInCalendarDays(start, firstMonday);
+    return diff >= 0 ? Math.floor(diff / 7) + 1 : 0;
+  };
+
+  // Use a regular function so it gets hoisted and is available before first use
+  function getGroupKey(date: Date, mode: Grouping): string {
+    switch (mode) {
+      case "monthly":
+        return format(date, "yyyy-MM-01");
+      case "yearly":
+        return format(date, "yyyy-01-01");
+      case "weekly":
+        return format(startOfWeek(date, { weekStartsOn: 1 }), "yyyy-MM-dd");
+      case "daily":
+      default:
+        return format(date, "yyyy-MM-dd");
+    }
+  }
+
+  const getGroupLabel = (key: string, mode: Grouping): string => {
+    const date = new Date(key);
+    switch (mode) {
+      case "monthly":
+        return format(date, "MMM yyyy");
+      case "yearly":
+        return format(date, "yyyy");
+      case "weekly": {
+        // Find the index of this week group in the ordered groups
+        const weekIndex = orderedGroups.findIndex(group => group.date === key);
+        const totalWeeks = orderedGroups.length;
+        const weekNumber = totalWeeks - weekIndex; // Reverse the numbering
+        const woy = getWeekNumberCustom(date); // Keep the year week number for reference
+        return `Week ${weekNumber} | ${woy}`;
+      }
+      case "daily":
+      default:
+        return format(date, "MMM d, yyyy");
+    }
+  };
+
   // Sync with fetched events and initialize order/positions if needed
   useEffect(() => {
     setTimelineEvents(events);
@@ -116,159 +185,17 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
     if (groupOrder.length === 0 && chronologicalOrder.length > 0) {
       setGroupOrder(chronologicalOrder);
     }
-    
-    // Initialize positions if empty
-    if (Object.keys(groupPositions).length === 0 && chronologicalOrder.length > 0) {
-      const newPositions: Record<string, number> = {};
-      let currentY = 100;
-      chronologicalOrder.forEach(date => {
-        newPositions[date] = currentY;
-        // Estimate height for initial layout
-        const estimatedEventHeight = 150; // A rough guess
-        const groupHeight = (groupsByDate.get(date)?.length || 0) * estimatedEventHeight;
-        currentY += groupHeight + VERTICAL_PADDING;
-      });
-      setGroupPositions(newPositions);
-    }
-  }, [events, groupsByDate, groupOrder.length, groupPositions]);
+  }, [events, groupsByDate, groupOrder.length]);
 
 
   // Persist layout changes to the database
-  const persistLayout = useCallback(async (order: string[], positions: Record<string, number>) => {
+  const persistOrder = useCallback(async (order: string[]) => {
     await timelineService.updateTimeline(timeline.id, {
       groupOrder: order,
-      groupPositions: positions,
     });
   }, [timeline.id]);
   
-  // Calculate default positions for groups that don't have one
-  const getGroupPosition = useCallback((date: string, index: number) => {
-    if (groupPositions[date] !== undefined) {
-      return groupPositions[date];
-    }
-    
-    let calculatedY = 100;
-    if (index > 0) {
-      const prevGroupDate = groupOrder[index - 1];
-      const prevGroupY = groupPositions[prevGroupDate] || 0;
-      const prevGroupHeight = groupRefs.current[prevGroupDate]?.offsetHeight || DEFAULT_GROUP_SPACING;
-      calculatedY = prevGroupY + prevGroupHeight + VERTICAL_PADDING;
-    }
-    return calculatedY;
-  }, [groupPositions, groupOrder]);
-
-  // Mouse event handlers for dragging groups
-  const handleMouseDown = useCallback((e: React.MouseEvent, groupId: string) => {
-    if (mode === 'view') return;
-    e.preventDefault();
-    e.stopPropagation();
-    const groupIndex = orderedGroups.findIndex(g => g.date === groupId);
-    const currentY = getGroupPosition(groupId, groupIndex);
-    setDragState({
-      isDragging: true,
-      groupId,
-      startY: e.clientY,
-      startScrollY: window.scrollY,
-      startCustomY: currentY,
-      currentY: currentY,
-    });
-  }, [getGroupPosition, orderedGroups, mode]);
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!dragState.isDragging || !dragState.groupId) return;
-    const deltaY = e.clientY - dragState.startY;
-    const newY = dragState.startCustomY + deltaY;
-    setDragState(prev => ({ ...prev, currentY: newY }));
-  }, [dragState]);
-
-  const handleMouseUp = useCallback(async () => {
-    if (!dragState.groupId) return;
-
-    const finalPositions = {
-      ...groupPositions,
-      [dragState.groupId]: dragState.currentY,
-    };
-
-    // Create a list of groups with their final positions
-    const finalLayout = groupOrder
-      .map(date => ({
-        date,
-        y: finalPositions[date] || 0,
-      }))
-      .sort((a, b) => a.y - b.y);
-
-    const newOrder = finalLayout.map(g => g.date);
-
-    // Recalculate all positions based on the new order to "settle" them
-    const newPositions: Record<string, number> = {};
-    let currentY = 100;
-    newOrder.forEach(date => {
-      newPositions[date] = currentY;
-      const groupHeight = groupRefs.current[date]?.offsetHeight || DEFAULT_GROUP_SPACING;
-      currentY += groupHeight + VERTICAL_PADDING;
-    });
-
-    setGroupOrder(newOrder);
-    setGroupPositions(newPositions);
-    
-    // Persist the new layout to the database
-    await persistLayout(newOrder, newPositions);
-    
-    setDragState({ isDragging: false, groupId: null, startY: 0, startScrollY: 0, startCustomY: 0, currentY: 0 });
-  }, [
-    dragState.groupId,
-    dragState.currentY,
-    groupOrder,
-    groupPositions,
-    persistLayout,
-  ]);
-
-  // Touch event handlers for mobile support
-  const handleTouchStart = useCallback((e: React.TouchEvent, groupId: string) => {
-    if (mode === 'view') return;
-    e.preventDefault();
-    e.stopPropagation();
-    const touch = e.touches[0];
-    const groupIndex = orderedGroups.findIndex(g => g.date === groupId);
-    const currentY = getGroupPosition(groupId, groupIndex);
-    setDragState({
-      isDragging: true,
-      groupId,
-      startY: touch.clientY,
-      startScrollY: window.scrollY,
-      startCustomY: currentY,
-      currentY: currentY,
-    });
-  }, [getGroupPosition, orderedGroups, mode]);
-
-  const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (!dragState.isDragging || !dragState.groupId) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    const deltaY = touch.clientY - dragState.startY;
-    const newY = dragState.startCustomY + deltaY;
-    setDragState(prev => ({ ...prev, currentY: newY }));
-  }, [dragState]);
-
-  const handleTouchEnd = useCallback(() => {
-    handleMouseUp(); // Reuse the same logic
-  }, [handleMouseUp]);
-
-  // Add global event listeners for drag operations
-  useEffect(() => {
-    if (dragState.isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.addEventListener('touchmove', handleTouchMove, { passive: false });
-      document.addEventListener('touchend', handleTouchEnd);
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        document.removeEventListener('touchmove', handleTouchMove);
-        document.removeEventListener('touchend', handleTouchEnd);
-      };
-    }
-  }, [dragState.isDragging, handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd]);
+  // No explicit Y-coordinates needed any more – natural flow is used.
 
   // When an event is edited, we only need to refetch if its timeline association changes.
   // For now, a simple refetch is sufficient.
@@ -299,43 +226,16 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
     setDateRange(newRange);
   };
 
-  const handleResetPositions = useCallback(async () => {
+  const handleResetOrder = useCallback(async () => {
     setIsResetting(true);
-    
     const chronologicalOrder = Array.from(groupsByDate.keys())
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-    
-    const newPositions: Record<string, number> = {};
-    let currentY = 100;
-    chronologicalOrder.forEach(date => {
-      newPositions[date] = currentY;
-      const groupHeight = groupRefs.current[date]?.offsetHeight || DEFAULT_GROUP_SPACING;
-      currentY += groupHeight + VERTICAL_PADDING;
-    });
-
     setGroupOrder(chronologicalOrder);
-    setGroupPositions(newPositions);
-    
-    // Persist the reset layout to the database
-    await persistLayout(chronologicalOrder, newPositions);
-    
-    setDragState({ isDragging: false, groupId: null, startY: 0, startScrollY: 0, startCustomY: 0, currentY: 0 });
+    await persistOrder(chronologicalOrder);
     setIsResetting(false);
-    console.log('Timeline positions and order reset to default');
-  }, [groupsByDate, persistLayout]);
+  }, [groupsByDate, persistOrder]);
 
-  const timelineHeight = Math.max(
-    600,
-    orderedGroups.length > 0
-      ? Math.max(
-          ...orderedGroups.map(
-            (group, index) =>
-              getGroupPosition(group.date, index) +
-              (groupRefs.current[group.date]?.offsetHeight || 0)
-          )
-        ) + 300
-      : 600
-  );
+  // Height now determined by content flow
 
   if (loading) {
     return (
@@ -389,8 +289,11 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
                 <span className="text-sm font-medium text-text-secondary">
                   {timelineEvents.length} event
                   {timelineEvents.length !== 1 ? 's' : ''} across{' '}
-                  {orderedGroups.length} day
-                  {orderedGroups.length !== 1 ? 's' : ''}
+                  {orderedGroups.length}{' '}
+                  {grouping === 'daily' ? (orderedGroups.length !== 1 ? 'days' : 'day') :
+                   grouping === 'weekly' ? (orderedGroups.length !== 1 ? 'weeks' : 'week') :
+                   grouping === 'monthly' ? (orderedGroups.length !== 1 ? 'months' : 'month') :
+                   orderedGroups.length !== 1 ? 'years' : 'year'}
                   {dateRange.startDate && dateRange.endDate
                     ? ' in selected range'
                     : ''}
@@ -399,7 +302,7 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
               <div className="flex items-center gap-3">
                 {mode === 'edit' && (
                   <button
-                    onClick={handleResetPositions}
+                    onClick={handleResetOrder}
                     disabled={isResetting}
                     className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all duration-200 ${
                       isResetting
@@ -414,6 +317,7 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
                     {isResetting ? 'Resetting...' : 'Reset Layout'}
                   </button>
                 )}
+                <GroupBySelector value={grouping} onChange={handleGroupingChange} />
                 <DateRangeSelector
                   dateRange={dateRange}
                   onDateRangeChange={handleDateRangeChange}
@@ -422,7 +326,7 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
             </div>
           </div>
 
-          {orderedGroups.length === 0 ? (
+          {orderedGroups.length === 0 && !isTransitioning ? (
             <div className="text-center py-12">
               <IoCalendarOutline className="w-16 h-16 text-text-muted mx-auto mb-4" />
               <h3 className="text-lg font-medium text-text-primary mb-2">
@@ -440,117 +344,43 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              <div
-                ref={timelineRef}
-                className="relative"
-                style={{ minHeight: `${timelineHeight}px` }}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={grouping}
+                initial={{ opacity: 0, y: 20, scale: 0.92 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.92 }}
+                transition={{ duration: 0.55, ease: [0.43, 0.13, 0.23, 0.96] }}
+                className="space-y-2 relative"
               >
+                {/* vertical timeline line */}
                 <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-blue-500 to-blue-300 dark:from-blue-400 dark:to-blue-600 opacity-60" />
                 <div className="md:hidden absolute left-4 w-0.5 h-full bg-gradient-to-b from-blue-500 to-blue-300 dark:from-blue-400 dark:to-blue-600 opacity-60" />
-                
-                <div className="relative">
-                  {orderedGroups.map((group, index) => {
-                    const isEven = index % 2 === 0;
-                    const groupDate = new Date(group.date);
-                    const groupY = getGroupPosition(group.date, index);
-                    const isDraggingThis =
-                      dragState.isDragging && dragState.groupId === group.date;
-                    const displayY = isDraggingThis
-                      ? dragState.currentY
-                      : groupY;
-                    
-                    return (
-                      <motion.div
-                        key={group.date}
-                        ref={el => {
-                          groupRefs.current[group.date] = el;
-                        }}
-                        layout
-                        className="absolute w-full"
-                        style={{
-                          top: `${displayY}px`,
-                          zIndex: isDraggingThis ? 30 : 10,
-                        }}
-                        transition={isDraggingThis ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 40 }}
-                      >
-                        <div className="hidden md:block absolute left-1/2 top-4 transform -translate-x-1/2 z-20">
-                          <div
-                            className={`bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 select-none transition-all duration-200 ${
-                              isDraggingThis
-                                ? 'scale-110 shadow-lg ring-2 ring-blue-500/50 cursor-grabbing'
-                                : 'hover:shadow-lg hover:scale-105'
-                            } ${mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                            onMouseDown={e => handleMouseDown(e, group.date)}
-                            onTouchStart={e =>
-                              handleTouchStart(e, group.date)
-                            }
-                            title={mode === 'edit' ? "Drag to re-order date group" : ""}
-                          >
-                            <span className="text-xs font-medium text-blue-600 dark:text-blue-400 pointer-events-none">
-                              {format(groupDate, 'MMM d, yyyy')}
-                            </span>
-                          </div>
-                          {/* Add horizontal connecting lines for desktop */}
-                          <div className={`absolute top-1/2 ${isEven ? 'right-full' : 'left-full'} w-8 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 transform -translate-y-1/2`} />
-                        </div>
 
-                        <div className="md:hidden absolute left-2 top-4 transform -translate-x-1/2 z-20">
-                          <div
-                            className={`bg-white dark:bg-gray-800 px-2 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 select-none transition-all duration-200 ${
-                              isDraggingThis
-                                ? 'scale-110 shadow-lg ring-2 ring-blue-500/50 cursor-grabbing'
-                                : 'hover:shadow-lg hover:scale-105'
-                            } ${mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                            onMouseDown={e => handleMouseDown(e, group.date)}
-                            onTouchStart={e =>
-                              handleTouchStart(e, group.date)
-                            }
-                            title={mode === 'edit' ? "Drag to re-order date group" : ""}
-                          >
-                            <span className="text-xs font-medium text-blue-600 dark:text-blue-400 pointer-events-none">
-                              {format(groupDate, 'MMM d')}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        {/* Update mobile connecting line */}
-                        <div className="md:hidden absolute left-8 top-6 transform -translate-y-1/2 w-8 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-10" />
-
-                        <div
-                          className={`md:flex ${
-                            isEven ? 'md:justify-start' : 'md:justify-end'
-                          } ml-14 md:ml-0`}
-                        >
-                          <div
-                            className={`w-full md:max-w-md ${
-                              isEven ? 'md:pr-8' : 'md:pl-8'
-                            } relative`}
-                          >
-                            <div className="space-y-4">
-                              {group.events.map(event => (
-                                <TimelineCard
-                                  key={event.id}
-                                  event={event}
-                                  onEdit={handleEditEvent}
-                                  onDelete={handleDeleteEvent}
-                                  mode={mode}
-                                  className={`z-9999 transform transition-all duration-300 hover:scale-[1.02] ${
-                                    isEven
-                                      ? 'md:hover:translate-x-1'
-                                      : 'md:hover:-translate-x-1'
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        </div>
+                {mode === 'edit' ? (
+                  <Reorder.Group axis="y" values={groupOrder} onReorder={async (newOrder) => { setGroupOrder(newOrder); await persistOrder(newOrder); }} className="space-y-2">
+                    {groupOrder.map((date, index) => {
+                      const events = groupsByDate.get(date);
+                      if (!events) return null;
+                      const isEven = index % 2 === 0;
+                      return (
+                        <Reorder.Item key={date} value={date} className="relative w-full">
+                          <GroupContent label={getGroupLabel(date, grouping)} events={events} isEven={isEven} mode={mode} onEdit={handleEditEvent} onDelete={handleDeleteEvent} />
+                        </Reorder.Item>
+                      );
+                    })}
+                  </Reorder.Group>
+                ) : (
+                  <div className="space-y-2">
+                    {orderedGroups.map((group, index) => (
+                      <motion.div key={group.date} layout className="relative w-full">
+                        <GroupContent label={getGroupLabel(group.date, grouping)} events={group.events} isEven={index % 2 === 0} mode={mode} onEdit={handleEditEvent} onDelete={handleDeleteEvent} />
                       </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
           )}
         </div>
       </GlassCard>
@@ -559,3 +389,62 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
 }
 
 export default Timeline;
+
+interface GroupContentProps {
+  label: string;
+  events: Event[];
+  isEven: boolean;
+  mode: 'view' | 'edit';
+  onEdit: (e: Event) => void;
+  onDelete: (id: string) => void;
+}
+
+const GroupContent: React.FC<GroupContentProps> = ({ label, events, isEven, mode, onEdit, onDelete }) => {
+  return (
+    <div>
+      {/* Date pill (desktop) */}
+      <div className="hidden md:block absolute left-1/2 top-4 transform -translate-x-1/2 z-20">
+        <div
+          className={`bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 select-none transition-all duration-200 ${mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        >
+          <span className="text-xs font-medium text-blue-600 dark:text-blue-400 pointer-events-none">
+            {label}
+          </span>
+        </div>
+        <div className={`absolute top-1/2 ${isEven ? 'right-full' : 'left-full'} w-8 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 transform -translate-y-1/2`} />
+      </div>
+
+      {/* Date pill (mobile) */}
+      <div className="md:hidden absolute left-2 top-4 transform -translate-x-1/2 z-20">
+        <div
+          className={`bg-white dark:bg-gray-800 px-2 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 select-none transition-all duration-200 ${mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        >
+          <span className="text-xs font-medium text-blue-600 dark:text-blue-400 pointer-events-none">
+            {label}
+          </span>
+        </div>
+      </div>
+
+      {/* Mobile connecting line */}
+      <div className="md:hidden absolute left-8 top-6 transform -translate-y-1/2 w-8 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-10" />
+
+      {/* Events */}
+      <div className={`z-9999 md:flex ${isEven ? 'md:justify-start' : 'md:justify-end'} ml-14 md:ml-0`}>
+        <div className={`z-9999 w-full md:max-w-md ${isEven ? 'md:pr-8' : 'md:pl-8'} relative`}>
+          <div className="space-y-4 z-9999">
+            {events.map(event => (
+              <TimelineCard
+                key={event.id}
+                event={event}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                mode={mode}
+                className={`transform transition-all duration-300 hover:scale-[1.02] ${isEven ? 'md:hover:translate-x-1' : 'md:hover:-translate-x-1'}`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
