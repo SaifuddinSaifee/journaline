@@ -160,7 +160,12 @@ export function Events() {
 
   // Group events by month-year
   const groupedEvents = events.reduce((acc, event) => {
-    const monthYearKey = format(new Date(event.date), 'yyyy-MM');
+    // Parse date consistently to avoid timezone issues
+    const eventDate = new Date(event.date);
+    const year = eventDate.getFullYear();
+    const month = eventDate.getMonth(); // Keep 0-indexed for proper Date construction
+    const monthYearKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+    
     if (!acc[monthYearKey]) {
       acc[monthYearKey] = [];
     }
@@ -231,7 +236,14 @@ export function Events() {
                 <div key={monthKey}>
                   <div className="mb-6">
                     <h3 className="text-xl font-bold text-text-primary border-b border-gray-200/30 dark:border-gray-700/30 pb-3">
-                      {format(new Date(monthKey + '-01'), 'MMMM yyyy')}
+                      {(() => {
+                        // Parse monthKey safely without timezone issues
+                        const [yearStr, monthStr] = monthKey.split('-');
+                        const year = parseInt(yearStr, 10);
+                        const month = parseInt(monthStr, 10) - 1; // Convert to 0-indexed for Date constructor
+                        const displayDate = new Date(year, month, 1); // Explicit local date construction
+                        return format(displayDate, 'MMMM yyyy');
+                      })()}
                     </h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
