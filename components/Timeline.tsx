@@ -15,8 +15,6 @@ import {
   format,
   startOfWeek,
   differenceInCalendarDays,
-  startOfMonth,
-  addDays,
 } from "date-fns";
 import { motion, Reorder, AnimatePresence } from "framer-motion";
 import { useTimelineEvents } from "../lib/hooks";
@@ -93,14 +91,30 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
   }, [groupOrder, groupsByDate]);
 
   // When the user switches grouping views (isTransitioning is true),
-  // generate a fresh chronological order *once* for the new view.
-  // This avoids clobbering the user's saved layout on initial load.
+  // we should maintain the saved order from the database
   useEffect(() => {
     if (!isTransitioning) return;
-    const chronologicalOrder = Array.from(groupsByDate.keys())
-      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-    setGroupOrder(chronologicalOrder);
-  }, [isTransitioning, groupsByDate]);
+    
+    // Get all valid dates from groupsByDate
+    const validDates = Array.from(groupsByDate.keys());
+    
+    if (timeline.groupOrder && timeline.groupOrder.length > 0) {
+      // Filter the saved order to only include dates that exist in current view
+      const validSavedOrder = timeline.groupOrder.filter(date => validDates.includes(date));
+      
+      // Add any new dates that aren't in the saved order
+      const newDates = validDates.filter(date => !validSavedOrder.includes(date));
+      const newDatesSorted = newDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+      
+      // Combine saved order with new dates
+      setGroupOrder([...validSavedOrder, ...newDatesSorted]);
+    } else {
+      // If no saved order exists, fall back to chronological
+      const chronologicalOrder = validDates
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+      setGroupOrder(chronologicalOrder);
+    }
+  }, [isTransitioning, groupsByDate, timeline.groupOrder]);
 
   // Turn off transition flag once new ordered groups are ready
   useEffect(() => {
@@ -127,22 +141,8 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
     return new Date(year, 0, 1 + offset);
   };
 
-  const getFirstMondayOfMonth = (date: Date) => {
-    const firstDay = startOfMonth(date);
-    const day = firstDay.getDay();
-    const offset = (8 - day) % 7;
-    return addDays(firstDay, offset);
-  };
-
   const getWeekNumberCustom = (date: Date) => {
     const firstMonday = getFirstMondayOfYear(date.getFullYear());
-    const start = startOfWeek(date, { weekStartsOn: 1 });
-    const diff = differenceInCalendarDays(start, firstMonday);
-    return diff >= 0 ? Math.floor(diff / 7) + 1 : 0;
-  };
-
-  const getWeekOfMonthCustom = (date: Date) => {
-    const firstMonday = getFirstMondayOfMonth(date);
     const start = startOfWeek(date, { weekStartsOn: 1 });
     const diff = differenceInCalendarDays(start, firstMonday);
     return diff >= 0 ? Math.floor(diff / 7) + 1 : 0;
@@ -171,9 +171,12 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
       case "yearly":
         return format(date, "yyyy");
       case "weekly": {
-        const wom = getWeekOfMonthCustom(date);
-        const woy = getWeekNumberCustom(date);
-        return `Week ${wom} | ${woy}`;
+        // Find the index of this week group in the ordered groups
+        const weekIndex = orderedGroups.findIndex(group => group.date === key);
+        const totalWeeks = orderedGroups.length;
+        const weekNumber = totalWeeks - weekIndex; // Reverse the numbering
+        const woy = getWeekNumberCustom(date); // Keep the year week number for reference
+        return `Week ${weekNumber} | ${woy}`;
       }
       case "daily":
       default:
