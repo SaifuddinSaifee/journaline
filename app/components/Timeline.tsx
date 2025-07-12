@@ -491,6 +491,8 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
                               {format(groupDate, 'MMM d, yyyy')}
                             </span>
                           </div>
+                          {/* Add horizontal connecting lines for desktop */}
+                          <div className={`absolute top-1/2 ${isEven ? 'right-full' : 'left-full'} w-8 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 transform -translate-y-1/2`} />
                         </div>
 
                         <div className="md:hidden absolute left-2 top-4 transform -translate-x-1/2 z-20">
@@ -512,7 +514,8 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
                           </div>
                         </div>
                         
-                        <div className="md:hidden absolute left-8 top-6 transform -translate-y-1/2 w-6 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-10" />
+                        {/* Update mobile connecting line */}
+                        <div className="md:hidden absolute left-8 top-6 transform -translate-y-1/2 w-8 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-10" />
 
                         <div
                           className={`md:flex ${
@@ -524,11 +527,6 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
                               isEven ? 'md:pr-8' : 'md:pl-8'
                             } relative`}
                           >
-                            <div
-                              className={`hidden md:block absolute top-[34px] transform -translate-y-1/2 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-10 ${
-                                isEven ? 'left-full w-8' : 'right-full w-8'
-                              }`}
-                            />
                             <div className="space-y-4">
                               {group.events.map(event => (
                                 <TimelineCard
@@ -537,7 +535,7 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
                                   onEdit={handleEditEvent}
                                   onDelete={handleDeleteEvent}
                                   mode={mode}
-                                  className={`transform transition-all duration-300 hover:scale-[1.02] ${
+                                  className={`z-9999 transform transition-all duration-300 hover:scale-[1.02] ${
                                     isEven
                                       ? 'md:hover:translate-x-1'
                                       : 'md:hover:-translate-x-1'
