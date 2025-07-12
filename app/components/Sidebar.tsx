@@ -16,11 +16,15 @@ export function Sidebar({ className }: SidebarProps) {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const handleDateSelect = (date: Date) => {
-    setSelectedDate(date);
+    // Create a new date at noon to avoid timezone issues
+    const adjustedDate = new Date(date);
+    adjustedDate.setHours(12, 0, 0, 0);
+    
+    setSelectedDate(adjustedDate);
     
     // Dispatch custom event for the Events component to listen to
     const event = new CustomEvent('calendar-date-selected', {
-      detail: { date }
+      detail: { date: adjustedDate }
     });
     window.dispatchEvent(event);
   };

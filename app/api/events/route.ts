@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       title: title.trim(),
       description: description.trim(),
       timelineIds: timelineIds || [], // Default to an empty array if not provided
-      date: parsedDate.toISOString(),
+      date: parsedDate.toISOString(), // Store as ISO string to maintain consistency
     };
 
     const event = await EventModel.create(eventData);

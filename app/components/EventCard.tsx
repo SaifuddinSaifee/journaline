@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
@@ -29,6 +29,13 @@ export function EventCard({ event, onEdit, onDelete, className, allTimelines }: 
   const [isTimelineDropdownOpen, setIsTimelineDropdownOpen] = useState(false);
   const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isTitleExpanded, setIsTitleExpanded] = useState(false);
+  const [needsTitleTruncation, setNeedsTitleTruncation] = useState(false);
+  const [needsDescriptionTruncation, setNeedsDescriptionTruncation] = useState(false);
+
+  // Refs for measuring content overflow
+  const titleRef = useRef<HTMLDivElement>(null);
+  const descriptionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchAssociatedTimelines = async () => {
@@ -43,6 +50,29 @@ export function EventCard({ event, onEdit, onDelete, className, allTimelines }: 
 
     fetchAssociatedTimelines();
   }, [event.timelineIds, allTimelines]);
+
+  // Measure content overflow to determine if truncation is needed
+  useEffect(() => {
+    const measureTruncation = () => {
+      // Measure title truncation
+      if (titleRef.current) {
+        const element = titleRef.current;
+        const isOverflowing = element.scrollHeight > element.clientHeight;
+        setNeedsTitleTruncation(isOverflowing);
+      }
+
+      // Measure description truncation
+      if (descriptionRef.current) {
+        const element = descriptionRef.current;
+        const isOverflowing = element.scrollHeight > element.clientHeight;
+        setNeedsDescriptionTruncation(isOverflowing);
+      }
+    };
+
+    // Measure after render with a small delay to ensure DOM is updated
+    const timer = setTimeout(measureTruncation, 100);
+    return () => clearTimeout(timer);
+  }, [event.title, event.description, isTitleExpanded, isDescriptionExpanded]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -110,9 +140,12 @@ export function EventCard({ event, onEdit, onDelete, className, allTimelines }: 
     onEdit?.(updatedEvent);
   };
 
-  const shouldTruncateDescription = (description: string) => {
-    // Check if description is long enough to potentially span more than 2 lines
-    return description.length > 100;
+  // Simple heuristic to determine if content likely needs truncation
+  const shouldShowTruncation = (content: string, type: 'title' | 'description') => {
+    if (type === 'title') {
+      return content.length > 40; // Lowered from 50 to 40
+    }
+    return content.length > 80; // Lowered from 120 to 80 - approximately 2 lines in card width
   };
 
   useEffect(() => {
@@ -147,10 +180,10 @@ export function EventCard({ event, onEdit, onDelete, className, allTimelines }: 
   }, [isActionsDropdownOpen, isTimelineDropdownOpen]);
 
   return (
-    <GlassCard variant="default" className={cn('p-4 hover:shadow-lg transition-all duration-300', className)}>
-      {/* Title Row */}
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex-1">
+    <GlassCard variant="default" className={cn('p-4 hover:shadow-lg transition-all duration-300 flex flex-col h-full', className)}>
+      {/* Title Row - Fixed Height */}
+      <div className="flex justify-between items-start mb-2 min-h-[3rem]">
+        <div className="flex-1 pr-2">
           {isEditing ? (
             <div className="space-y-1">
               <input
@@ -173,14 +206,39 @@ export function EventCard({ event, onEdit, onDelete, className, allTimelines }: 
               </div>
             </div>
           ) : (
-            <h3 className="text-lg font-semibold text-text-primary pr-2">
-              {event.title}
-            </h3>
+            <div className="space-y-1">
+              <div
+                ref={titleRef}
+                className={`text-lg font-semibold text-text-primary cursor-pointer ${
+                  !isTitleExpanded && (needsTitleTruncation || shouldShowTruncation(event.title, 'title')) ? 'line-clamp-2' : ''
+                }`}
+                onClick={() => (needsTitleTruncation || shouldShowTruncation(event.title, 'title')) && setIsTitleExpanded(!isTitleExpanded)}
+                title={(needsTitleTruncation || shouldShowTruncation(event.title, 'title')) ? "Click to expand/collapse" : undefined}
+              >
+                {event.title}
+              </div>
+              {(needsTitleTruncation || shouldShowTruncation(event.title, 'title')) && !isTitleExpanded && (
+                <button
+                  onClick={() => setIsTitleExpanded(true)}
+                  className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium"
+                >
+                  Show more
+                </button>
+              )}
+              {(needsTitleTruncation || shouldShowTruncation(event.title, 'title')) && isTitleExpanded && (
+                <button
+                  onClick={() => setIsTitleExpanded(false)}
+                  className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium"
+                >
+                  Show less
+                </button>
+              )}
+            </div>
           )}
         </div>
         
         {isEditing ? (
-          <div className="flex space-x-1">
+          <div className="flex space-x-1 flex-shrink-0">
             <GlassButton variant="ghost" size="sm" onClick={handleCancel} title="Cancel">
               <IoClose className="w-6 h-6" />
             </GlassButton>
@@ -189,7 +247,7 @@ export function EventCard({ event, onEdit, onDelete, className, allTimelines }: 
             </GlassButton>
           </div>
         ) : (
-          <div className="relative actions-dropdown">
+          <div className="relative actions-dropdown flex-shrink-0">
             <GlassButton 
               variant="ghost" 
               size="sm" 
@@ -223,50 +281,52 @@ export function EventCard({ event, onEdit, onDelete, className, allTimelines }: 
         )}
       </div>
 
-      {/* Date Row */}
-      <div className="mb-3">
-        {isDateEditing ? (
-          <div className="flex items-center space-x-2">
-            <input
-              type="date"
-              value={event.date.split('T')[0]} // Convert ISO date to YYYY-MM-DD format
-              onChange={(e) => {
-                const newDate = new Date(e.target.value);
-                newDate.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
-                handleDateChange(newDate.toISOString());
-              }}
-              className="px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              autoFocus
-            />
-            <GlassButton variant="ghost" size="sm" onClick={handleDateCancel} title="Cancel">
-              <IoClose className="w-4 h-4" />
-            </GlassButton>
-          </div>
-        ) : (
-          <button
-            onClick={handleDateClick}
-            className="text-sm text-text-muted hover:text-text-primary transition-colors cursor-pointer text-left"
-            title="Click to change date"
-          >
-            {format(new Date(event.date), 'MMMM d')}
-          </button>
-        )}
-        
-        {/* Associated Timelines */}
-        {associatedTimelines.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {associatedTimelines.map(timeline => (
-              <span key={timeline.id} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                <IoTimeOutline className="w-3 h-3 mr-1" />
-                {timeline.name}
-              </span>
-            ))}
-          </div>
-        )}
+      {/* Date Row - Fixed Height for Consistent Alignment */}
+      <div className="mb-3 min-h-[2rem] flex items-start">
+        <div className="w-full">
+          {isDateEditing ? (
+            <div className="flex items-center space-x-2">
+              <input
+                type="date"
+                value={event.date.split('T')[0]} // Convert ISO date to YYYY-MM-DD format
+                onChange={(e) => {
+                  const newDate = new Date(e.target.value);
+                  newDate.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+                  handleDateChange(newDate.toISOString());
+                }}
+                className="px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                autoFocus
+              />
+              <GlassButton variant="ghost" size="sm" onClick={handleDateCancel} title="Cancel">
+                <IoClose className="w-4 h-4" />
+              </GlassButton>
+            </div>
+          ) : (
+            <button
+              onClick={handleDateClick}
+              className="text-sm text-text-muted hover:text-text-primary transition-colors cursor-pointer text-left"
+              title="Click to change date"
+            >
+              {format(new Date(event.date), 'MMMM d')}
+            </button>
+          )}
+          
+          {/* Associated Timelines */}
+          {associatedTimelines.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {associatedTimelines.map(timeline => (
+                <span key={timeline.id} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                  <IoTimeOutline className="w-3 h-3 mr-1" />
+                  {timeline.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Description */}
-      <div className="mb-4">
+      {/* Description - Flexible Height */}
+      <div className="mb-4 flex-grow">
         {isEditing ? (
           <div className="space-y-2">
             <div className="space-y-1">
@@ -292,7 +352,14 @@ export function EventCard({ event, onEdit, onDelete, className, allTimelines }: 
         ) : (
           <div className="space-y-2">
             <div className="prose prose-sm max-w-none dark:prose-invert">
-              <div className={`text-text-secondary ${!isDescriptionExpanded ? 'line-clamp-2' : ''}`}>
+              <div 
+                ref={descriptionRef}
+                className={`text-text-secondary ${
+                  !isDescriptionExpanded && (needsDescriptionTruncation || shouldShowTruncation(event.description, 'description')) 
+                    ? 'line-clamp-2' 
+                    : ''
+                }`}
+              >
                 <ReactMarkdown
                   components={{
                     p: ({ children }) => <p className="text-text-secondary mb-2 last:mb-0">{children}</p>,
@@ -311,33 +378,33 @@ export function EventCard({ event, onEdit, onDelete, className, allTimelines }: 
                   {event.description}
                 </ReactMarkdown>
               </div>
-              
-              {/* Show more button positioned right after the clamped text */}
-              {shouldTruncateDescription(event.description) && !isDescriptionExpanded && (
+            </div>
+            
+            {/* Show more/less buttons */}
+            <div className="flex justify-start">
+              {(needsDescriptionTruncation || shouldShowTruncation(event.description, 'description')) && !isDescriptionExpanded && (
                 <button
                   onClick={() => setIsDescriptionExpanded(true)}
-                  className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium mt-1"
+                  className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium"
                 >
                   Show more
                 </button>
               )}
+              {(needsDescriptionTruncation || shouldShowTruncation(event.description, 'description')) && isDescriptionExpanded && (
+                <button
+                  onClick={() => setIsDescriptionExpanded(false)}
+                  className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium"
+                >
+                  Show less
+                </button>
+              )}
             </div>
-            
-            {/* Show less button for expanded descriptions */}
-            {shouldTruncateDescription(event.description) && isDescriptionExpanded && (
-              <button
-                onClick={() => setIsDescriptionExpanded(false)}
-                className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium"
-              >
-                Show less
-              </button>
-            )}
           </div>
         )}
       </div>
       
-      {/* Timeline Dropdown */}
-      <div className="relative timeline-dropdown">
+      {/* Timeline Dropdown - Grounded to Bottom */}
+      <div className="relative timeline-dropdown mt-auto">
         <button
           type="button"
           onClick={() => setIsTimelineDropdownOpen(!isTimelineDropdownOpen)}
