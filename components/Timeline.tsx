@@ -18,7 +18,7 @@ import {
   startOfMonth,
   addDays,
 } from "date-fns";
-import { motion, Reorder } from "framer-motion";
+import { motion, Reorder, AnimatePresence } from "framer-motion";
 import { useTimelineEvents } from "../lib/hooks";
 import { Event, Timeline as TimelineType } from "../lib/types";
 import { eventService } from "../lib/eventService";
@@ -47,6 +47,8 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
 
   // Grouping mode state
   const [grouping, setGrouping] = useState<Grouping>("daily");
+  // View-transition flag – enables fancy animation & prevents flicker
+  const [isTransitioning, setIsTransitioning] = useState(false);
   
   // Use timelineId from props to fetch events
   const { events, loading, error, refetch } = useTimelineEvents({
@@ -60,10 +62,59 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
   
   const [isResetting, setIsResetting] = useState(false);
 
-  // Whenever the grouping mode changes, clear the order so it can re-initialise chronologically
+  // Moving effects below data calculations to avoid "use before define" lint errors.
+
+  // Group events by date
+  const groupsByDate = useMemo(() => {
+    if (!timelineEvents) return new Map();
+
+    const groups: Record<string, Event[]> = {};
+    timelineEvents.forEach(event => {
+      const key = getGroupKey(new Date(event.date), grouping);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(event);
+    });
+
+    return new Map(Object.entries(groups).map(([key, events]) => [key, events]));
+  }, [timelineEvents, grouping]);
+
+  // Create the ordered array of groups for rendering
+  const orderedGroups = useMemo(() => {
+    // Ensure groupOrder only contains dates that are present in groupsByDate
+    const validGroupOrder = groupOrder.filter(date => groupsByDate.has(date));
+    
+    return validGroupOrder
+      .map(date => {
+        const events = groupsByDate.get(date);
+        if (!events) return null;
+        return { date, events };
+      })
+      .filter(Boolean) as { date: string, events: Event[] }[];
+  }, [groupOrder, groupsByDate]);
+
+  // When the user switches grouping views (isTransitioning is true),
+  // generate a fresh chronological order *once* for the new view.
+  // This avoids clobbering the user's saved layout on initial load.
   useEffect(() => {
-    setGroupOrder([]);
-  }, [grouping]);
+    if (!isTransitioning) return;
+    const chronologicalOrder = Array.from(groupsByDate.keys())
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    setGroupOrder(chronologicalOrder);
+  }, [isTransitioning, groupsByDate]);
+
+  // Turn off transition flag once new ordered groups are ready
+  useEffect(() => {
+    if (isTransitioning && orderedGroups.length > 0) {
+      setIsTransitioning(false);
+    }
+  }, [orderedGroups, isTransitioning]);
+
+  // Handle grouping changes with transition trigger
+  const handleGroupingChange = (newGrouping: Grouping) => {
+    if (newGrouping === grouping) return;
+    setIsTransitioning(true);
+    setGrouping(newGrouping);
+  };
 
   // --------------------------------------------------
   // Helper functions for custom calendar calculations
@@ -97,7 +148,8 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
     return diff >= 0 ? Math.floor(diff / 7) + 1 : 0;
   };
 
-  const getGroupKey = (date: Date, mode: Grouping): string => {
+  // Use a regular function so it gets hoisted and is available before first use
+  function getGroupKey(date: Date, mode: Grouping): string {
     switch (mode) {
       case "monthly":
         return format(date, "yyyy-MM-01");
@@ -109,7 +161,7 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
       default:
         return format(date, "yyyy-MM-dd");
     }
-  };
+  }
 
   const getGroupLabel = (key: string, mode: Grouping): string => {
     const date = new Date(key);
@@ -128,34 +180,6 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
         return format(date, "MMM d, yyyy");
     }
   };
-
-  // Group events by date
-  const groupsByDate = useMemo(() => {
-    if (!timelineEvents) return new Map();
-
-    const groups: Record<string, Event[]> = {};
-    timelineEvents.forEach(event => {
-      const key = getGroupKey(new Date(event.date), grouping);
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(event);
-    });
-
-    return new Map(Object.entries(groups).map(([key, events]) => [key, events]));
-  }, [timelineEvents, grouping]);
-
-  // Create the ordered array of groups for rendering
-  const orderedGroups = useMemo(() => {
-    // Ensure groupOrder only contains dates that are present in groupsByDate
-    const validGroupOrder = groupOrder.filter(date => groupsByDate.has(date));
-    
-    return validGroupOrder
-      .map(date => {
-        const events = groupsByDate.get(date);
-        if (!events) return null;
-        return { date, events };
-      })
-      .filter(Boolean) as { date: string, events: Event[] }[];
-  }, [groupOrder, groupsByDate]);
 
   // Sync with fetched events and initialize order/positions if needed
   useEffect(() => {
@@ -297,7 +321,7 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
                     {isResetting ? 'Resetting...' : 'Reset Layout'}
                   </button>
                 )}
-                <GroupBySelector value={grouping} onChange={setGrouping} />
+                <GroupBySelector value={grouping} onChange={handleGroupingChange} />
                 <DateRangeSelector
                   dateRange={dateRange}
                   onDateRangeChange={handleDateRangeChange}
@@ -306,7 +330,7 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
             </div>
           </div>
 
-          {orderedGroups.length === 0 ? (
+          {orderedGroups.length === 0 && !isTransitioning ? (
             <div className="text-center py-12">
               <IoCalendarOutline className="w-16 h-16 text-text-muted mx-auto mb-4" />
               <h3 className="text-lg font-medium text-text-primary mb-2">
@@ -324,34 +348,43 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
               </p>
             </div>
           ) : (
-            <div className="space-y-2 relative">
-              {/* vertical timeline line */}
-              <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-blue-500 to-blue-300 dark:from-blue-400 dark:to-blue-600 opacity-60" />
-              <div className="md:hidden absolute left-4 w-0.5 h-full bg-gradient-to-b from-blue-500 to-blue-300 dark:from-blue-400 dark:to-blue-600 opacity-60" />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={grouping}
+                initial={{ opacity: 0, y: 20, scale: 0.92 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.92 }}
+                transition={{ duration: 0.55, ease: [0.43, 0.13, 0.23, 0.96] }}
+                className="space-y-2 relative"
+              >
+                {/* vertical timeline line */}
+                <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-blue-500 to-blue-300 dark:from-blue-400 dark:to-blue-600 opacity-60" />
+                <div className="md:hidden absolute left-4 w-0.5 h-full bg-gradient-to-b from-blue-500 to-blue-300 dark:from-blue-400 dark:to-blue-600 opacity-60" />
 
-              {mode === 'edit' ? (
-                <Reorder.Group axis="y" values={groupOrder} onReorder={async (newOrder) => { setGroupOrder(newOrder); await persistOrder(newOrder); }} className="space-y-2">
-                  {groupOrder.map((date, index) => {
-                    const events = groupsByDate.get(date);
-                    if (!events) return null;
-                    const isEven = index % 2 === 0;
-                    return (
-                      <Reorder.Item key={date} value={date} className="relative w-full">
-                        <GroupContent label={getGroupLabel(date, grouping)} events={events} isEven={isEven} mode={mode} onEdit={handleEditEvent} onDelete={handleDeleteEvent} />
-                      </Reorder.Item>
-                    );
-                  })}
-                </Reorder.Group>
-              ) : (
-                <div className="space-y-2">
-                  {orderedGroups.map((group, index) => (
-                    <motion.div key={group.date} layout className="relative w-full">
-                      <GroupContent label={getGroupLabel(group.date, grouping)} events={group.events} isEven={index % 2 === 0} mode={mode} onEdit={handleEditEvent} onDelete={handleDeleteEvent} />
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </div>
+                {mode === 'edit' ? (
+                  <Reorder.Group axis="y" values={groupOrder} onReorder={async (newOrder) => { setGroupOrder(newOrder); await persistOrder(newOrder); }} className="space-y-2">
+                    {groupOrder.map((date, index) => {
+                      const events = groupsByDate.get(date);
+                      if (!events) return null;
+                      const isEven = index % 2 === 0;
+                      return (
+                        <Reorder.Item key={date} value={date} className="relative w-full">
+                          <GroupContent label={getGroupLabel(date, grouping)} events={events} isEven={isEven} mode={mode} onEdit={handleEditEvent} onDelete={handleDeleteEvent} />
+                        </Reorder.Item>
+                      );
+                    })}
+                  </Reorder.Group>
+                ) : (
+                  <div className="space-y-2">
+                    {orderedGroups.map((group, index) => (
+                      <motion.div key={group.date} layout className="relative w-full">
+                        <GroupContent label={getGroupLabel(group.date, grouping)} events={group.events} isEven={index % 2 === 0} mode={mode} onEdit={handleEditEvent} onDelete={handleDeleteEvent} />
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
           )}
         </div>
       </GlassCard>
@@ -406,9 +439,9 @@ const GroupContent: React.FC<GroupContentProps> = ({ label, events, isEven, mode
       <div className="md:hidden absolute left-8 top-6 transform -translate-y-1/2 w-8 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-10" />
 
       {/* Events */}
-      <div className={`md:flex ${isEven ? 'md:justify-start' : 'md:justify-end'} ml-14 md:ml-0`}>
-        <div className={`w-full md:max-w-md ${isEven ? 'md:pr-8' : 'md:pl-8'} relative`}>
-          <div className="space-y-4">
+      <div className={`z-9999 md:flex ${isEven ? 'md:justify-start' : 'md:justify-end'} ml-14 md:ml-0`}>
+        <div className={`z-9999 w-full md:max-w-md ${isEven ? 'md:pr-8' : 'md:pl-8'} relative`}>
+          <div className="space-y-4 z-9999">
             {events.map(event => (
               <TimelineCard
                 key={event.id}
