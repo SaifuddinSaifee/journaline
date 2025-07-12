@@ -26,12 +26,6 @@ import TimelineCard from "./TimelineCard";
 import DateRangeSelector, { DateRange } from "./DateRangeSelector";
 import GroupBySelector, { Grouping } from "./GroupBySelector";
 
-// (Spacing constants no longer needed)
-
-// DragState and absolute-position helpers removed – Reorder.Group now handles drag.
-
-// Helper component will be defined later (after utility fns) to ensure access to helpers
-
 interface TimelineProps {
   timeline: TimelineType;
   mode?: 'view' | 'edit';
@@ -129,10 +123,6 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
     setIsTransitioning(true);
     setGrouping(newGrouping);
   };
-
-  // --------------------------------------------------
-  // Helper functions for custom calendar calculations
-  // --------------------------------------------------
 
   const getFirstMondayOfYear = (year: number) => {
     const jan1 = new Date(year, 0, 1);
@@ -299,8 +289,11 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
                 <span className="text-sm font-medium text-text-secondary">
                   {timelineEvents.length} event
                   {timelineEvents.length !== 1 ? 's' : ''} across{' '}
-                  {orderedGroups.length} day
-                  {orderedGroups.length !== 1 ? 's' : ''}
+                  {orderedGroups.length}{' '}
+                  {grouping === 'daily' ? (orderedGroups.length !== 1 ? 'days' : 'day') :
+                   grouping === 'weekly' ? (orderedGroups.length !== 1 ? 'weeks' : 'week') :
+                   grouping === 'monthly' ? (orderedGroups.length !== 1 ? 'months' : 'month') :
+                   orderedGroups.length !== 1 ? 'years' : 'year'}
                   {dateRange.startDate && dateRange.endDate
                     ? ' in selected range'
                     : ''}
@@ -396,12 +389,6 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
 }
 
 export default Timeline;
-
-// The rest of the file stays unchanged
-
-// -----------------------------
-// External GroupContent component (presentation-only)
-// -----------------------------
 
 interface GroupContentProps {
   label: string;
