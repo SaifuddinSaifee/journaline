@@ -11,14 +11,14 @@ interface GlassButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
 }
 
 const variants = {
-  default: 'glass hover:glass-strong text-text-on-glass',
-  primary: 'glass-primary hover:bg-glass-primary-strong text-text-on-glass border-glass-primary-border',
-  secondary: 'glass-secondary hover:bg-glass-secondary-strong text-text-on-glass border-glass-secondary-border',
-  accent: 'glass-accent hover:bg-glass-accent-strong text-text-on-glass border-glass-accent-border',
-  success: 'glass-success hover:bg-glass-success-strong text-text-on-glass border-glass-success-border',
-  warning: 'glass-warning hover:bg-glass-warning-strong text-text-on-glass border-glass-warning-border',
-  error: 'glass-error hover:bg-glass-error-strong text-text-on-glass border-glass-error-border',
-  ghost: 'bg-transparent hover:glass border-transparent text-text-primary',
+  default: 'glass hover:glass-strong hover:scale-[1.02] active:scale-[0.98] text-text-on-glass hover:shadow-lg transition-all duration-200 cursor-pointer',
+  primary: 'glass-primary hover:bg-glass-primary-strong hover:scale-[1.02] active:scale-[0.98] text-text-on-glass border-glass-primary-border hover:shadow-lg hover:border-opacity-75 transition-all duration-200 cursor-pointer',
+  secondary: 'glass-secondary hover:bg-glass-secondary-strong hover:scale-[1.02] active:scale-[0.98] text-text-on-glass border-glass-secondary-border hover:shadow-lg hover:border-opacity-75 transition-all duration-200 cursor-pointer',
+  accent: 'glass-accent hover:bg-glass-accent-strong hover:scale-[1.02] active:scale-[0.98] text-text-on-glass border-glass-accent-border hover:shadow-lg hover:border-opacity-75 transition-all duration-200 cursor-pointer',
+  success: 'glass-success hover:bg-glass-success-strong hover:scale-[1.02] active:scale-[0.98] text-text-on-glass border-glass-success-border hover:shadow-lg hover:border-opacity-75 transition-all duration-200 cursor-pointer',
+  warning: 'glass-warning hover:bg-glass-warning-strong hover:scale-[1.02] active:scale-[0.98] text-text-on-glass border-glass-warning-border hover:shadow-lg hover:border-opacity-75 transition-all duration-200 cursor-pointer',
+  error: 'glass-error hover:bg-glass-error-strong hover:scale-[1.02] active:scale-[0.98] text-text-on-glass border-glass-error-border hover:shadow-lg hover:border-opacity-75 transition-all duration-200 cursor-pointer',
+  ghost: 'bg-transparent hover:glass hover:scale-[1.02] active:scale-[0.98] border-transparent text-text-primary hover:shadow-lg transition-all duration-200 cursor-pointer',
 };
 
 const sizes = {
@@ -44,12 +44,14 @@ export function GlassButton({
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center gap-2 font-medium transition-all duration-300',
+        'inline-flex items-center justify-center gap-2 font-medium',
         'focus:outline-none focus:ring-2 focus:ring-glass-primary-border focus:ring-offset-2',
-        'disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none',
+        'disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none',
+        loading ? 'cursor-wait' : '',
         variants[variant],
         sizes[size],
-        'rounded-xl',
+        'rounded-xl shadow-sm',
+        'active:cursor-grabbing',
         className
       )}
       disabled={isDisabled}

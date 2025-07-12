@@ -27,6 +27,7 @@ export class TimelineModel {
       name: doc.name,
       description: doc.description,
       groupOrder: doc.groupOrder,
+      sortPreference: doc.sortPreference,
       color: doc.color,
       isArchived: doc.isArchived,
       publish: doc.publish,
@@ -49,6 +50,7 @@ export class TimelineModel {
         name: (timelineData.name ?? '').trim(),
         description: timelineData.description?.trim(),
         groupOrder: timelineData.groupOrder ?? [],
+        sortPreference: timelineData.sortPreference ?? { field: 'date', order: 'desc' },
         color: timelineData.color,
         isArchived: timelineData.isArchived ?? false,
         publish: timelineData.publish ?? true,
@@ -120,6 +122,9 @@ export class TimelineModel {
       }
       if (timelineData.groupOrder !== undefined) {
         updateData.groupOrder = timelineData.groupOrder;
+      }
+      if (timelineData.sortPreference !== undefined) {
+        updateData.sortPreference = timelineData.sortPreference;
       }
       if (timelineData.color !== undefined) {
         updateData.color = timelineData.color;
