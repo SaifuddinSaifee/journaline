@@ -185,6 +185,43 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Sleek Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--glass-border);
+  border-radius: 100vh;
+  opacity: 0.5;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Firefox Scrollbar Styles */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--glass-border) transparent;
+}
+
+/* Hide scrollbar when not hovering (optional) */
+.hide-scrollbar:not(:hover)::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.hide-scrollbar:not(:hover) {
+  scrollbar-color: transparent transparent;
+}
+
 /* Glass Utility Classes */
 .glass {
   background: var(--glass-bg);

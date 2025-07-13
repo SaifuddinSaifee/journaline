@@ -8,13 +8,13 @@ import GlassCard from "./GlassCard";
 import GlassButton from "./GlassButton";
 import { Event, Timeline } from "../lib/types";
 import {
-  IoTimeOutline,
   IoCheckmark,
   IoClose,
   IoTrash,
   IoChevronDown,
   IoEllipsisVertical,
 } from "react-icons/io5";
+import TimelineAvatarGroup from "./TimelineAvatarGroup";
 import { FaPencilAlt } from "react-icons/fa";
 
 interface EventCardProps {
@@ -38,25 +38,17 @@ export function EventCard({
     title: event.title,
     description: event.description,
   });
-  const [associatedTimelines, setAssociatedTimelines] = useState<Timeline[]>(
-    []
-  );
+  const [associatedTimelines, setAssociatedTimelines] = useState<Timeline[]>([]);
   const [isTimelineDropdownOpen, setIsTimelineDropdownOpen] = useState(false);
   const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false);
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const [isTitleExpanded, setIsTitleExpanded] = useState(false);
-  const [needsTitleTruncation, setNeedsTitleTruncation] = useState(false);
-  const [needsDescriptionTruncation, setNeedsDescriptionTruncation] =
-    useState(false);
 
-  // Refs for measuring content overflow
+  // Refs for content
   const titleRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchAssociatedTimelines = async () => {
       if (event.timelineIds && event.timelineIds.length > 0) {
-        // We can find the timeline details from the `allTimelines` prop
         const associated = allTimelines.filter((t) =>
           event.timelineIds.includes(t.id)
         );
@@ -68,29 +60,6 @@ export function EventCard({
 
     fetchAssociatedTimelines();
   }, [event.timelineIds, allTimelines]);
-
-  // Measure content overflow to determine if truncation is needed
-  useEffect(() => {
-    const measureTruncation = () => {
-      // Measure title truncation
-      if (titleRef.current) {
-        const element = titleRef.current;
-        const isOverflowing = element.scrollHeight > element.clientHeight;
-        setNeedsTitleTruncation(isOverflowing);
-      }
-
-      // Measure description truncation
-      if (descriptionRef.current) {
-        const element = descriptionRef.current;
-        const isOverflowing = element.scrollHeight > element.clientHeight;
-        setNeedsDescriptionTruncation(isOverflowing);
-      }
-    };
-
-    // Measure after render with a small delay to ensure DOM is updated
-    const timer = setTimeout(measureTruncation, 100);
-    return () => clearTimeout(timer);
-  }, [event.title, event.description, isTitleExpanded, isDescriptionExpanded]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -156,17 +125,6 @@ export function EventCard({
       updatedAt: new Date().toISOString(),
     };
     onEdit?.(updatedEvent);
-  };
-
-  // Simple heuristic to determine if content likely needs truncation
-  const shouldShowTruncation = (
-    content: string,
-    type: "title" | "description"
-  ) => {
-    if (type === "title") {
-      return content.length > 40; // Lowered from 50 to 40
-    }
-    return content.length > 80; // Lowered from 120 to 80 - approximately 2 lines in card width
   };
 
   useEffect(() => {
@@ -239,47 +197,10 @@ export function EventCard({
             <div className="space-y-1">
               <div
                 ref={titleRef}
-                className={`text-lg font-semibold text-text-primary cursor-pointer ${
-                  !isTitleExpanded &&
-                  (needsTitleTruncation ||
-                    shouldShowTruncation(event.title, "title"))
-                    ? "line-clamp-2"
-                    : ""
-                }`}
-                onClick={() =>
-                  (needsTitleTruncation ||
-                    shouldShowTruncation(event.title, "title")) &&
-                  setIsTitleExpanded(!isTitleExpanded)
-                }
-                title={
-                  needsTitleTruncation ||
-                  shouldShowTruncation(event.title, "title")
-                    ? "Click to expand/collapse"
-                    : undefined
-                }
+                className="text-lg font-semibold text-text-primary break-words"
               >
                 {event.title}
               </div>
-              {(needsTitleTruncation ||
-                shouldShowTruncation(event.title, "title")) &&
-                !isTitleExpanded && (
-                  <button
-                    onClick={() => setIsTitleExpanded(true)}
-                    className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium"
-                  >
-                    Show more
-                  </button>
-                )}
-              {(needsTitleTruncation ||
-                shouldShowTruncation(event.title, "title")) &&
-                isTitleExpanded && (
-                  <button
-                    onClick={() => setIsTitleExpanded(false)}
-                    className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium"
-                  >
-                    Show less
-                  </button>
-                )}
             </div>
           )}
         </div>
@@ -404,44 +325,38 @@ export function EventCard({
             <div className="prose prose-sm max-w-none dark:prose-invert">
               <div
                 ref={descriptionRef}
-                className={`text-text-secondary ${
-                  !isDescriptionExpanded &&
-                  (needsDescriptionTruncation ||
-                    shouldShowTruncation(event.description, "description"))
-                    ? "line-clamp-2"
-                    : ""
-                }`}
+                className="text-text-secondary break-words"
               >
                 <ReactMarkdown
                   components={{
                     p: ({ children }) => (
-                      <p className="text-text-secondary mb-2 last:mb-0">
+                      <p className="text-text-secondary mb-2 last:mb-0 break-words">
                         {children}
                       </p>
                     ),
                     strong: ({ children }) => (
-                      <strong className="text-text-primary font-semibold">
+                      <strong className="text-text-primary font-semibold break-words">
                         {children}
                       </strong>
                     ),
                     em: ({ children }) => (
-                      <em className="text-text-secondary italic">{children}</em>
+                      <em className="text-text-secondary italic break-words">{children}</em>
                     ),
                     ul: ({ children }) => (
-                      <ul className="text-text-secondary ml-4 list-disc">
+                      <ul className="text-text-secondary ml-4 list-disc break-words">
                         {children}
                       </ul>
                     ),
                     ol: ({ children }) => (
-                      <ol className="text-text-secondary ml-4 list-decimal">
+                      <ol className="text-text-secondary ml-4 list-decimal break-words">
                         {children}
                       </ol>
                     ),
                     li: ({ children }) => (
-                      <li className="text-text-secondary mb-1">{children}</li>
+                      <li className="text-text-secondary mb-1 break-words">{children}</li>
                     ),
                     code: ({ children }) => (
-                      <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm font-mono text-text-primary">
+                      <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm font-mono text-text-primary break-all">
                         {children}
                       </code>
                     ),
@@ -452,35 +367,20 @@ export function EventCard({
               </div>
             </div>
 
-            {/* Show more/less buttons */}
-            <div className="flex justify-start">
-              {(needsDescriptionTruncation ||
-                shouldShowTruncation(event.description, "description")) &&
-                !isDescriptionExpanded && (
-                  <button
-                    onClick={() => setIsDescriptionExpanded(true)}
-                    className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium"
-                  >
-                    Show more
-                  </button>
-                )}
-              {(needsDescriptionTruncation ||
-                shouldShowTruncation(event.description, "description")) &&
-                isDescriptionExpanded && (
-                  <button
-                    onClick={() => setIsDescriptionExpanded(false)}
-                    className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium"
-                  >
-                    Show less
-                  </button>
-                )}
-            </div>
+            {/* Remove show more/less buttons section */}
           </div>
         )}
       </div>
 
+      {/* Timeline Avatars */}
+      {associatedTimelines.length > 0 && (
+        <div className="mb-2">
+          <TimelineAvatarGroup timelines={associatedTimelines} />
+        </div>
+      )}
+
       {/* Timeline Dropdown - Grounded to Bottom */}
-      <div className="relative timeline-dropdown mt-auto">
+      <div className="relative timeline-dropdown">
         <button
           type="button"
           onClick={() => setIsTimelineDropdownOpen(!isTimelineDropdownOpen)}
@@ -528,20 +428,7 @@ export function EventCard({
             )}
           </div>
         )}
-        {/* Associated Timelines */}
-        {associatedTimelines.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {associatedTimelines.map((timeline) => (
-              <span
-                key={timeline.id}
-                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-              >
-                <IoTimeOutline className="w-3 h-3 mr-1" />
-                {timeline.name}
-              </span>
-            ))}
-          </div>
-        )}
+        {/* Old timeline badges removed in favor of avatar group */}
       </div>
     </GlassCard>
   );

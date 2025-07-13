@@ -3,7 +3,7 @@ import { cn } from '../lib/utils';
 
 interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
-  variant?: 'default' | 'strong' | 'subtle' | 'primary' | 'secondary' | 'accent' | 'success' | 'warning' | 'error';
+  variant?: 'default' | 'strong' | 'subtle' | 'primary' | 'secondary' | 'accent' | 'success' | 'warning' | 'error' | 'opaque';
   hover?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
   radius?: 'sm' | 'md' | 'lg' | 'xl';
@@ -19,6 +19,7 @@ const variants = {
   success: 'glass-success',
   warning: 'glass-warning',
   error: 'glass-error',
+  opaque: 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-lg',
 };
 
 const paddingClasses = {
