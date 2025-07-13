@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { EventModel } from '@/app/lib/models/Event';
-import { EventFormData } from '@/app/lib/types';
+import { EventModel } from '@/lib/models/Event';
+import { EventFormData } from '@/lib/types';
 
 // GET /api/events/[id] - Retrieve a specific event
 export async function GET(

@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { Timeline } from '../../../lib/types';
+import { timelineService } from '../../../lib/timelineService';
+import GlassCard from '../../../components/GlassCard';
+import GlassButton from '../../../components/GlassButton';
+import NewTimelineModal from '../../../components/NewTimelineModal';
 import { IoAdd, IoEyeOutline, IoPencil, IoTrashOutline } from 'react-icons/io5';
-import GlassCard from '../components/GlassCard';
-import { timelineService } from '../lib/timelineService';
-import { Timeline } from '../lib/types';
-import GlassButton from '../components/GlassButton';
-import NewTimelineModal from '../components/NewTimelineModal';
+import Link from 'next/link';
 
-const TimelinesPage = () => {
+export default function TimelinePage() {
   const [timelines, setTimelines] = useState<Timeline[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ const TimelinesPage = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6">
+    <div className="max-w-6xl mx-auto">
       <GlassCard hover={false}>
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
@@ -88,18 +88,19 @@ const TimelinesPage = () => {
                       <p className="text-text-secondary text-sm line-clamp-3">{timeline.description || 'No description provided.'}</p>
                     </div>
                     <div className="mt-6 flex justify-end items-center gap-2">
-                       <Link href={`/timeline/${timeline.id}`} passHref>
-                         <GlassButton variant='ghost' size='sm' className="text-blue-500 hover:text-blue-600">
-                           <IoEyeOutline />
-                         </GlassButton>
-                       </Link>
-                       {/* TODO: Add edit functionality */}
-                       <GlassButton variant='ghost' size='sm' className="text-gray-500 hover:text-gray-600">
-                         <IoPencil />
-                       </GlassButton>
-                       <GlassButton variant='ghost' size='sm' onClick={() => handleDelete(timeline.id)} className="text-red-500 hover:text-red-600">
-                         <IoTrashOutline />
-                       </GlassButton>
+                      <Link href={`/timeline/${timeline.id}/view`} passHref>
+                        <GlassButton variant='secondary' size='sm' className="text-blue-500 hover:text-blue-600">
+                          <IoEyeOutline />
+                        </GlassButton>
+                      </Link>
+                      <Link href={`/timeline/${timeline.id}/edit`} passHref>
+                        <GlassButton variant='secondary' size='sm' className="text-gray-500 hover:text-gray-600">
+                          <IoPencil />
+                        </GlassButton>
+                      </Link>
+                      <GlassButton variant='error' size='sm' onClick={() => handleDelete(timeline.id)} className="text-red-500 hover:text-red-600">
+                        <IoTrashOutline />
+                      </GlassButton>
                     </div>
                   </div>
                 </GlassCard>
@@ -109,16 +110,14 @@ const TimelinesPage = () => {
         </div>
       </GlassCard>
 
-      {/* New Timeline Modal */}
       <NewTimelineModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onCreated={(timeline) => {
           setTimelines(prev => [...prev, timeline]);
+          setIsModalOpen(false);
         }}
       />
     </div>
   );
-};
-
-export default TimelinesPage; 
+} 

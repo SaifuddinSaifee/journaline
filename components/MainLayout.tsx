@@ -40,16 +40,13 @@ export function MainLayout({ children, className }: MainLayoutProps) {
         
         {/* Sidebar */}
         <Sidebar />
-        
         {/* Main Content Area */}
         <main className={cn(
-          'pt-16 transition-all duration-300 min-h-screen',
-          isCollapsed ? 'pl-16' : 'pl-64',
-          'lg:pl-64 lg:data-[collapsed=true]:pl-16',
+          'transition-all duration-300 min-h-screen',
           className
         )}
         data-collapsed={isCollapsed}>
-          <div className="p-6">
+          <div>
             {children}
           </div>
         </main>

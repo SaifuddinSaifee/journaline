@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import GlassButton from './GlassButton';
 import Calendar from './Calendar';
 import { cn } from '../lib/utils';
-import { useSidebar } from './MainLayout';
+import { useSidebar } from '../lib/hooks/useSidebar';
 import { IoChevronBack } from 'react-icons/io5';
 
 interface SidebarProps {
@@ -77,7 +77,6 @@ export function Sidebar({ className }: SidebarProps) {
       {/* Overlay for mobile when sidebar is open */}
       {!isCollapsed && (
         <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 lg:hidden"
           onClick={toggleSidebar}
         />
       )}

@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { Timeline as TimelineType } from '../../../lib/types';
-import { timelineService } from '../../../lib/timelineService';
-import { Timeline } from '../../../components/Timeline';
-import GlassCard from '../../../components/GlassCard';
+import { Timeline as TimelineType } from '../../../../lib/types';
+import { timelineService } from '../../../../lib/timelineService';
+import { Timeline } from '../../../../components/Timeline';
+import GlassCard from '../../../../components/GlassCard';
 
 const DynamicTimelinePage = () => {
   const params = useParams();
