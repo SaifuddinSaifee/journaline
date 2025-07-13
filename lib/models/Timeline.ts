@@ -1,6 +1,7 @@
 import { ObjectId, Collection } from 'mongodb';
 import MongoDB from '../mongodb';
 import { TimelineDocument, TimelineResponse, TimelineFormData } from '../types';
+import { EventModel } from './Event';
 
 export class TimelineModel {
   private static collection: Collection<TimelineDocument> | null = null;
@@ -28,6 +29,10 @@ export class TimelineModel {
       description: doc.description,
       groupOrder: doc.groupOrder,
       sortPreference: doc.sortPreference,
+      origin: doc.origin?.map(o => ({
+        timelineId: o.timelineId.toString(),
+        date: o.date.toISOString(),
+      })),
       color: doc.color,
       isArchived: doc.isArchived,
       publish: doc.publish,
@@ -167,6 +172,58 @@ export class TimelineModel {
     } catch (error) {
       console.error('Error deleting timeline:', error);
       throw new Error('Failed to delete timeline');
+    }
+  }
+
+  static async fork(id: string): Promise<TimelineResponse | null> {
+    try {
+      if (!ObjectId.isValid(id)) {
+        return null;
+      }
+
+      const collection = await this.getCollection();
+      const originalTimeline = await collection.findOne({ _id: new ObjectId(id) });
+
+      if (!originalTimeline) {
+        return null;
+      }
+
+      const now = new Date();
+
+      const newTimelineDocument: Omit<TimelineDocument, '_id'> = {
+        name: `Copy of ${originalTimeline.name}`,
+        description: originalTimeline.description,
+        groupOrder: originalTimeline.groupOrder,
+        sortPreference: originalTimeline.sortPreference,
+        color: originalTimeline.color,
+        isArchived: false,
+        publish: false,
+        createdAt: now,
+        updatedAt: now,
+        origin: [
+          { timelineId: originalTimeline._id, date: now },
+          ...(originalTimeline.origin || []),
+        ],
+      };
+
+      const result = await collection.insertOne(newTimelineDocument as TimelineDocument);
+      const newTimelineId = result.insertedId;
+
+      const eventCollection = await EventModel.getCollection();
+      await eventCollection.updateMany(
+        { timelineIds: originalTimeline._id },
+        { $addToSet: { timelineIds: newTimelineId } }
+      );
+
+      const created = await collection.findOne({ _id: newTimelineId });
+      if (!created) {
+        throw new Error('Failed to retrieve forked timeline');
+      }
+
+      return this.documentToResponse(created);
+    } catch (error) {
+      console.error('Error forking timeline:', error);
+      throw new Error('Failed to fork timeline');
     }
   }
 } 

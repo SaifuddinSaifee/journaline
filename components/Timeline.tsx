@@ -6,9 +6,11 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import { useRouter } from "next/navigation";
 import {
   IoTimeOutline,
   IoCalendarOutline,
+  IoGitBranchOutline,
 } from "react-icons/io5";
 import {
   format,
@@ -25,6 +27,9 @@ import TimelineCard from "./TimelineCard";
 import DateRangeSelector, { DateRange } from "./DateRangeSelector";
 import GroupBySelector, { Grouping } from "./GroupBySelector";
 import SortSelector from "./SortSelector";
+import TimelineResponsive from "./TimelineResponsive";
+import GlassButton from "./GlassButton";
+import GlassMessageBox from "./GlassMessageBox";
 
 interface TimelineProps {
   timeline: TimelineType;
@@ -32,6 +37,7 @@ interface TimelineProps {
 }
 
 export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
+  const router = useRouter();
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: null,
     endDate: null,
@@ -41,6 +47,7 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
   const [grouping, setGrouping] = useState<Grouping>("daily");
   // View-transition flag – enables fancy animation & prevents flicker
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isForking, setIsForking] = useState(false);
   
   // Sort preference state
   const [sortPreference, setSortPreference] = useState<SortPreference>(
@@ -237,6 +244,58 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
     setDateRange(newRange);
   };
 
+  const [isMessageBoxOpen, setIsMessageBoxOpen] = useState(false);
+  const [messageBoxConfig, setMessageBoxConfig] = useState<{
+    title: string;
+    message: string;
+    variant: 'confirm' | 'success' | 'error';
+    onConfirm?: () => void | Promise<void>;
+  }>({
+    title: '',
+    message: '',
+    variant: 'confirm',
+  });
+
+  const handleForkTimeline = async () => {
+    if (isForking) return;
+
+    setMessageBoxConfig({
+      title: 'Fork Timeline',
+      message: 'Are you sure you want to fork this timeline? This will create a new timeline containing all the events from the current view.',
+      variant: 'confirm',
+      onConfirm: async () => {
+        setIsForking(true);
+        try {
+          const { data: forkedTimeline, error } = await timelineService.forkTimeline(timeline.id);
+
+          if (error || !forkedTimeline) {
+            throw new Error(error || 'Failed to fork timeline');
+          }
+
+          setMessageBoxConfig({
+            title: 'Success',
+            message: 'Timeline forked successfully! Redirecting to the new timeline.',
+            variant: 'success',
+            onConfirm: () => router.push(`/timeline/${forkedTimeline.id}/edit`)
+          });
+          setIsMessageBoxOpen(true);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'An unknown error occurred.';
+          console.error('Forking error:', message);
+          setMessageBoxConfig({
+            title: 'Error',
+            message: `Error: ${message}`,
+            variant: 'error',
+          });
+          setIsMessageBoxOpen(true);
+        } finally {
+          setIsForking(false);
+        }
+      }
+    });
+    setIsMessageBoxOpen(true);
+  };
+
   // Handle sort preference change
   const handleSortChange = (newSortPreference: SortPreference) => {
     setSortPreference(newSortPreference);
@@ -311,9 +370,23 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
       <GlassCard variant="default" className="min-h-96">
         <div className="p-4 sm:p-6">
           <div className="mb-8">
-            <h2 className="text-2xl sm:text-3xl font-bold text-text-primary mb-2">
-              {timeline.name}
-            </h2>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-2xl sm:text-3xl font-bold text-text-primary">
+                {timeline.name}
+              </h2>
+              <div className="flex items-center gap-2">
+                <GlassButton
+                  onClick={handleForkTimeline}
+                  disabled={isForking}
+                  variant="primary"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <IoGitBranchOutline className="w-4 h-4" />
+                  {isForking ? 'Forking...' : 'Fork Timeline'}
+                </GlassButton>
+              </div>
+            </div>
             <p className="text-text-secondary text-sm sm:text-base">
               {timeline.description || 'Your chronological journey. Drag date pills to re-order event groups.'}
             </p>
@@ -338,11 +411,13 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
               </div>
               <div className="flex items-center gap-3">
                 {mode === 'edit' && (
-                  <SortSelector
-                    value={sortPreference}
-                    onChange={handleSortChange}
-                    onApply={handleSortApply}
-                  />
+                  <>
+                    <SortSelector
+                      value={sortPreference}
+                      onChange={handleSortChange}
+                      onApply={handleSortApply}
+                    />
+                  </>
                 )}
                 <GroupBySelector value={grouping} onChange={handleGroupingChange} />
                 <DateRangeSelector
@@ -380,9 +455,11 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
                 transition={{ duration: 0.55, ease: [0.43, 0.13, 0.23, 0.96] }}
                 className="space-y-2 relative"
               >
-                {/* vertical timeline line */}
-                <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-blue-500 to-blue-300 dark:from-blue-400 dark:to-blue-600 opacity-60" />
-                <div className="md:hidden absolute left-4 w-0.5 h-full bg-gradient-to-b from-blue-500 to-blue-300 dark:from-blue-400 dark:to-blue-600 opacity-60" />
+                {/* vertical timeline line - desktop */}
+                <div className="hidden lg:block absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-blue-500 to-blue-300 dark:from-blue-400 dark:to-blue-600 opacity-60" />
+                
+                {/* vertical timeline line - responsive */}
+                <div className="lg:hidden absolute left-4 w-0.5 h-full bg-gradient-to-b from-blue-500 to-blue-300 dark:from-blue-400 dark:to-blue-600 opacity-60" />
 
                 {mode === 'edit' ? (
                   <Reorder.Group axis="y" values={groupOrder} onReorder={async (newOrder) => { setGroupOrder(newOrder); await persistOrder(newOrder); }} className="space-y-2">
@@ -411,6 +488,19 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
           )}
         </div>
       </GlassCard>
+      <GlassMessageBox
+        isOpen={isMessageBoxOpen}
+        onClose={() => setIsMessageBoxOpen(false)}
+        onConfirm={messageBoxConfig.onConfirm}
+        title={messageBoxConfig.title}
+        message={messageBoxConfig.message}
+        variant={messageBoxConfig.variant}
+        loading={isForking}
+        size="md"
+        confirmText={messageBoxConfig.variant === 'confirm' ? 'Fork Timeline' : 'OK'}
+        cancelText="Cancel"
+        showIcon={true}
+      />
     </div>
   );
 }
@@ -429,48 +519,48 @@ interface GroupContentProps {
 const GroupContent: React.FC<GroupContentProps> = ({ label, events, isEven, mode, onEdit, onDelete }) => {
   return (
     <div>
-      {/* Date pill (desktop) */}
-      <div className="hidden md:block absolute left-1/2 top-4 transform -translate-x-1/2 z-[40]">
-        <div
-          className={`bg-white dark:bg-gray-800 px-3 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 select-none transition-all duration-200 ${mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''}`}
-        >
-          <span className="text-xs font-medium text-blue-600 dark:text-blue-400 pointer-events-none">
-            {label}
-          </span>
+      {/* Desktop layout (≥1024px) */}
+      <div className="hidden lg:block">
+        {/* Date pill (desktop) */}
+        <div className="absolute left-1/2 top-4 transform -translate-x-1/2">
+          <div
+            className={`bg-white z-[40] dark:bg-gray-800 px-3 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 select-none transition-all duration-200 ${mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          >
+            <span className="text-xs font-medium text-blue-600 dark:text-blue-400 pointer-events-none">
+              {label}
+            </span>
+          </div>
+          <div className={`absolute top-1/2 z-10 ${isEven ? 'right-full' : 'left-full'} w-8 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 transform -translate-y-1/2`} />
         </div>
-        <div className={`absolute top-1/2 ${isEven ? 'right-full' : 'left-full'} w-8 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 transform -translate-y-1/2`} />
-      </div>
 
-      {/* Date pill (mobile) */}
-      <div className="md:hidden absolute left-2 top-4 transform -translate-x-1/2 z-[40]">
-        <div
-          className={`bg-white dark:bg-gray-800 px-2 py-1 rounded-full shadow-md border border-gray-200 dark:border-gray-700 select-none transition-all duration-200 ${mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''}`}
-        >
-          <span className="text-xs font-medium text-blue-600 dark:text-blue-400 pointer-events-none">
-            {label}
-          </span>
-        </div>
-      </div>
-
-      {/* Mobile connecting line */}
-      <div className="md:hidden absolute left-8 top-6 transform -translate-y-1/2 w-8 h-0.5 bg-blue-500 dark:bg-blue-400 opacity-70 z-[39]" />
-
-      {/* Events */}
-      <div className={`z-[30] md:flex ${isEven ? 'md:justify-start' : 'md:justify-end'} ml-14 md:ml-0`}>
-        <div className={`z-[30] w-full md:max-w-md ${isEven ? 'md:pr-8' : 'md:pl-8'} relative`}>
-          <div className="space-y-4 z-[30]">
-            {events.map(event => (
-              <TimelineCard
-                key={event.id}
-                event={event}
-                onEdit={onEdit}
-                onDelete={onDelete}
-                mode={mode}
-                className={`transform transition-all duration-300 hover:scale-[1.02] ${isEven ? 'md:hover:translate-x-1' : 'md:hover:-translate-x-1'}`}
-              />
-            ))}
+        {/* Events */}
+        <div className={`z-[30] flex ${isEven ? 'justify-start' : 'justify-end'}`}>
+          <div className={`z-[30] w-full max-w-md ${isEven ? 'pr-8' : 'pl-8'} relative`}>
+            <div className="space-y-4 z-[30]">
+              {events.map(event => (
+                <TimelineCard
+                  key={event.id}
+                  event={event}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  mode={mode}
+                  className={`transform transition-all duration-300 hover:scale-[1.02] ${isEven ? 'hover:translate-x-1' : 'hover:-translate-x-1'}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
+      </div>
+
+      {/* Responsive layout (<1024px) */}
+      <div className="block lg:hidden">
+        <TimelineResponsive
+          events={events}
+          mode={mode}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          label={label}
+        />
       </div>
     </div>
   );
