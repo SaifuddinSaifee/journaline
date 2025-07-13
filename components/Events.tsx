@@ -184,7 +184,7 @@ export function Events() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <GlassCard variant="default" hover={false} className="min-h-96">
+      <GlassCard padding='none' variant="default" hover={false} className="min-h-96">
         <div className="p-6">
           <div className="mb-6">
             <h2 className="text-3xl font-bold text-text-primary mb-2">
