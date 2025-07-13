@@ -83,6 +83,11 @@ export interface TimelineDocument {
   groupOrder: string[];
   sortPreference?: SortPreference;
 
+  origin?: {
+    timelineId: ObjectId;
+    date: Date;
+  }[];
+
   color?: string;
   isArchived?: boolean;
   publish: boolean;
@@ -111,6 +116,11 @@ export interface TimelineResponse {
 
   groupOrder: string[];
   sortPreference?: SortPreference;
+
+  origin?: {
+    timelineId: string;
+    date: string;
+  }[];
 
   color?: string;
   isArchived?: boolean;
