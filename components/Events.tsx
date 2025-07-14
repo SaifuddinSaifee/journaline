@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import GlassCard from './GlassCard';
 import EventCard from './EventCard';
@@ -9,17 +9,27 @@ import { Event, EventFormData, Timeline } from '../lib/types';
 import { eventService } from '../lib/eventService';
 import { timelineService } from '../lib/timelineService';
 import { IoCalendarOutline } from 'react-icons/io5';
+import Toast from './Toast';
 
 export function Events() {
   const [events, setEvents] = useState<Event[]>([]);
   const [allTimelines, setAllTimelines] = useState<Timeline[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<Event | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [migrating, setMigrating] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastVariant, setToastVariant] = useState<"success" | "error">("success");
 
-  // Load events from API on mount
+  // Memoize the timeline associations for better performance
+  const getAssociatedTimelines = useCallback((eventTimelineIds: string[]) => {
+    return allTimelines.filter(t => eventTimelineIds.includes(t.id));
+  }, [allTimelines]);
+
+  // Load events and timelines from API on mount
   useEffect(() => {
     loadEvents();
   }, []);
@@ -55,7 +65,6 @@ export function Events() {
       // Load all timelines
       const timelineResult = await timelineService.getAllTimelines();
       if (timelineResult.error) {
-        // Non-critical, so we can just log it and continue
         console.error('Failed to load timelines:', timelineResult.error);
         setAllTimelines([]);
       } else if (timelineResult.data) {
@@ -85,28 +94,66 @@ export function Events() {
     };
   }, []);
 
-  const handleSaveEvent = async (eventData: EventFormData) => {
-    if (!selectedDate) return;
-
+  const handleSaveEvent = async (eventData: EventFormData, eventId?: string) => {
     try {
-      const result = await eventService.createEvent({
-        ...eventData,
-        date: selectedDate.toISOString(),
-      });
+      if (eventId) {
+        // Update existing event
+        const result = await eventService.updateEvent(eventId, {
+          ...eventData,
+          date: selectedEvent!.date, // Keep the existing date
+        });
 
-      if (result.error) {
-        setError(result.error);
-      } else if (result.data) {
-        setEvents(prev => [result.data!, ...prev]);
-        
-        // Dispatch custom event to notify timeline hook of updates
-        const event = new CustomEvent('events-updated');
-        window.dispatchEvent(event);
+        if (result.error) {
+          setError(result.error);
+          setToastMessage("Failed to update event");
+          setToastVariant("error");
+          setShowToast(true);
+        } else if (result.data) {
+          setEvents(prev => prev.map(event => 
+            event.id === eventId ? result.data! : event
+          ));
+          
+          // Dispatch custom event to notify timeline hook of updates
+          const event = new CustomEvent('events-updated');
+          window.dispatchEvent(event);
+
+          setToastMessage("Event updated successfully!");
+          setToastVariant("success");
+          setShowToast(true);
+        }
+      } else if (selectedDate) {
+        // Create new event
+        const result = await eventService.createEvent({
+          ...eventData,
+          date: selectedDate.toISOString(),
+        });
+
+        if (result.error) {
+          setError(result.error);
+          setToastMessage("Failed to create event");
+          setToastVariant("error");
+          setShowToast(true);
+        } else if (result.data) {
+          setEvents(prev => [result.data!, ...prev]);
+          
+          // Dispatch custom event to notify timeline hook of updates
+          const event = new CustomEvent('events-updated');
+          window.dispatchEvent(event);
+
+          setToastMessage("Event created successfully!");
+          setToastVariant("success");
+          setShowToast(true);
+        }
       }
     } catch (err) {
-      console.error('Error creating event:', err);
-      setError('Failed to create event');
+      console.error('Error saving event:', err);
+      setError('Failed to save event');
+      setToastMessage("Failed to save event");
+      setToastVariant("error");
+      setShowToast(true);
     }
+
+    handleCloseModal();
   };
 
   const handleEditEvent = async (updatedEvent: Event) => {
@@ -120,6 +167,9 @@ export function Events() {
 
       if (result.error) {
         setError(result.error);
+        setToastMessage("Failed to update event");
+        setToastVariant("error");
+        setShowToast(true);
       } else if (result.data) {
         setEvents(prev => prev.map(event => 
           event.id === updatedEvent.id ? result.data! : event
@@ -128,10 +178,17 @@ export function Events() {
         // Dispatch custom event to notify timeline hook of updates
         const event = new CustomEvent('events-updated');
         window.dispatchEvent(event);
+
+        setToastMessage("Event updated successfully!");
+        setToastVariant("success");
+        setShowToast(true);
       }
     } catch (err) {
       console.error('Error updating event:', err);
       setError('Failed to update event');
+      setToastMessage("Failed to update event");
+      setToastVariant("error");
+      setShowToast(true);
     }
   };
 
@@ -141,22 +198,39 @@ export function Events() {
 
       if (result.error) {
         setError(result.error);
+        setToastMessage("Failed to delete event");
+        setToastVariant("error");
+        setShowToast(true);
       } else {
         setEvents(prev => prev.filter(event => event.id !== eventId));
         
         // Dispatch custom event to notify timeline hook of updates
         const event = new CustomEvent('events-updated');
         window.dispatchEvent(event);
+
+        setToastMessage("Event deleted successfully!");
+        setToastVariant("success");
+        setShowToast(true);
       }
     } catch (err) {
       console.error('Error deleting event:', err);
       setError('Failed to delete event');
+      setToastMessage("Failed to delete event");
+      setToastVariant("error");
+      setShowToast(true);
     }
+  };
+
+  const handleViewEvent = (event: Event) => {
+    setSelectedEvent(event);
+    setSelectedDate(null);
+    setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedDate(null);
+    setSelectedEvent(undefined);
   };
 
   // Group events by month-year
@@ -248,15 +322,20 @@ export function Events() {
                     </h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {groupedEvents[monthKey].map(event => (
-                      <EventCard
-                        key={event.id}
-                        event={event}
-                        onEdit={handleEditEvent}
-                        onDelete={handleDeleteEvent}
-                        allTimelines={allTimelines}
-                      />
-                    ))}
+                    {groupedEvents[monthKey].map(event => {
+                      const associatedTimelines = getAssociatedTimelines(event.timelineIds || []);
+                      return (
+                        <EventCard
+                          key={event.id}
+                          event={event}
+                          onEdit={handleEditEvent}
+                          onDelete={handleDeleteEvent}
+                          onView={handleViewEvent}
+                          allTimelines={allTimelines}
+                          associatedTimelines={associatedTimelines}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               ))}
@@ -270,6 +349,17 @@ export function Events() {
         onClose={handleCloseModal}
         onSave={handleSaveEvent}
         selectedDate={selectedDate}
+        event={selectedEvent}
+        allTimelines={allTimelines}
+        associatedTimelines={selectedEvent ? getAssociatedTimelines(selectedEvent.timelineIds || []) : []}
+      />
+
+      <Toast
+        message={toastMessage}
+        variant={toastVariant}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+        duration={3000}
       />
     </div>
   );
