@@ -21,16 +21,20 @@ interface EventCardProps {
   event: Event;
   onEdit?: (event: Event) => void;
   onDelete?: (eventId: string) => void;
+  onView?: (event: Event) => void;
   className?: string;
   allTimelines: Timeline[];
+  associatedTimelines: Timeline[]; // Add this prop to avoid recalculation
 }
 
 export function EventCard({
   event,
   onEdit,
   onDelete,
+  onView,
   className,
   allTimelines,
+  associatedTimelines,
 }: EventCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isDateEditing, setIsDateEditing] = useState(false);
@@ -38,7 +42,6 @@ export function EventCard({
     title: event.title,
     description: event.description,
   });
-  const [associatedTimelines, setAssociatedTimelines] = useState<Timeline[]>([]);
   const [isTimelineDropdownOpen, setIsTimelineDropdownOpen] = useState(false);
   const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false);
 
@@ -46,20 +49,7 @@ export function EventCard({
   const titleRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const fetchAssociatedTimelines = async () => {
-      if (event.timelineIds && event.timelineIds.length > 0) {
-        const associated = allTimelines.filter((t) =>
-          event.timelineIds.includes(t.id)
-        );
-        setAssociatedTimelines(associated);
-      } else {
-        setAssociatedTimelines([]);
-      }
-    };
-
-    fetchAssociatedTimelines();
-  }, [event.timelineIds, allTimelines]);
+  // Remove the useEffect for fetching associated timelines since we now receive them as props
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -161,13 +151,26 @@ export function EventCard({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isActionsDropdownOpen, isTimelineDropdownOpen]);
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger if clicking on action buttons or timeline dropdown
+    if (
+      e.target instanceof Element && 
+      (e.target.closest('.actions-dropdown') || 
+       e.target.closest('.timeline-dropdown'))
+    ) {
+      return;
+    }
+    onView?.(event);
+  };
+
   return (
     <GlassCard
       variant="default"
       className={cn(
-        "p-4 hover:shadow-lg transition-all duration-300 flex flex-col h-full",
+        "p-4 hover:shadow-lg transition-all duration-300 flex flex-col h-full cursor-pointer",
         className
       )}
+      onClick={handleCardClick}
     >
       {/* Title Row - Fixed Height */}
       <div className="flex justify-between items-start mb-2 min-h-[3rem]">
