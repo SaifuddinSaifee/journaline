@@ -217,15 +217,18 @@ export function Timeline({ timeline, mode = 'view', onTimelineUpdate }: Timeline
   useEffect(() => {
     setTimelineEvents(events);
 
-    const chronologicalOrder = Array.from(groupsByDate.keys())
-      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    const validDates = Array.from(groupsByDate.keys());
+    const chronologicalOrder = validDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    
+    // Check if current groupOrder is valid against the actual event dates
+    const isGroupOrderValid = groupOrder.length > 0 && groupOrder.every(date => validDates.includes(date)) 
+      && validDates.every(date => groupOrder.includes(date));
 
-    // Initialize order if it's empty or doesn't match the current event groups
-    if (groupOrder.length === 0 && chronologicalOrder.length > 0) {
+    // Reset groupOrder if it's invalid, empty, or doesn't match current events
+    if (!isGroupOrderValid && chronologicalOrder.length > 0) {
       setGroupOrder(chronologicalOrder);
     }
-  }, [events, groupsByDate, groupOrder.length]);
-
+  }, [events, groupsByDate, groupOrder]);
 
   // Persist layout changes to the database
   const persistOrder = useCallback(async (order: string[]) => {
