@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import { cn } from "../lib/utils";
@@ -8,8 +8,6 @@ import GlassCard from "./GlassCard";
 import GlassButton from "./GlassButton";
 import { Event, Timeline } from "../lib/types";
 import {
-  IoCheckmark,
-  IoClose,
   IoTrash,
   IoChevronDown,
   IoEllipsisVertical,

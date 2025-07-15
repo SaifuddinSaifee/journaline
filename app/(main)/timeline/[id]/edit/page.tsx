@@ -20,6 +20,26 @@ const DynamicTimelineEditPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchTimelineData = async () => {
+    try {
+      setLoading(true);
+      const { data, error: fetchError } =
+        await timelineService.getTimelineById(timelineId);
+
+      if (fetchError) {
+        setError(fetchError);
+      } else if (data) {
+        setTimeline(data);
+      } else {
+        setError("Timeline not found.");
+      }
+    } catch {
+      setError("An unexpected error occurred while fetching the timeline.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!timelineId) {
       setError("No timeline ID provided.");
@@ -27,28 +47,13 @@ const DynamicTimelineEditPage = () => {
       return;
     }
 
-    const fetchTimelineData = async () => {
-      try {
-        setLoading(true);
-        const { data, error: fetchError } =
-          await timelineService.getTimelineById(timelineId);
-
-        if (fetchError) {
-          setError(fetchError);
-        } else if (data) {
-          setTimeline(data);
-        } else {
-          setError("Timeline not found.");
-        }
-      } catch {
-        setError("An unexpected error occurred while fetching the timeline.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchTimelineData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timelineId]);
+
+  const handleTimelineUpdate = (updatedTimeline: TimelineType) => {
+    setTimeline(updatedTimeline);
+  };
 
   return (
     <MainLayout>
@@ -96,7 +101,11 @@ const DynamicTimelineEditPage = () => {
             )}
 
             {!loading && !error && timeline && (
-              <Timeline timeline={timeline} mode="edit" />
+              <Timeline 
+                timeline={timeline} 
+                mode="edit" 
+                onTimelineUpdate={handleTimelineUpdate}
+              />
             )}
           </div>
         </GlassCard>

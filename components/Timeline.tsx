@@ -11,7 +11,10 @@ import {
   IoTimeOutline,
   IoCalendarOutline,
   IoGitBranchOutline,
+  IoCheckmark,
+  IoClose,
 } from "react-icons/io5";
+import { FaPencilAlt } from "react-icons/fa";
 import {
   format,
   startOfWeek,
@@ -22,6 +25,7 @@ import { useTimelineEvents } from "../lib/hooks";
 import { Event, Timeline as TimelineType, SortPreference } from "../lib/types";
 import { eventService } from "../lib/eventService";
 import { timelineService } from '../lib/timelineService';
+import { cn } from "../lib/utils";
 import GlassCard from "./GlassCard";
 import TimelineCard from "./TimelineCard";
 import DateRangeSelector, { DateRange } from "./DateRangeSelector";
@@ -34,14 +38,23 @@ import GlassMessageBox from "./GlassMessageBox";
 interface TimelineProps {
   timeline: TimelineType;
   mode?: 'view' | 'edit';
+  onTimelineUpdate?: (updatedTimeline: TimelineType) => void;
 }
 
-export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
+export function Timeline({ timeline, mode = 'view', onTimelineUpdate }: TimelineProps) {
   const router = useRouter();
   const [dateRange, setDateRange] = useState<DateRange>({
     startDate: null,
     endDate: null,
   });
+
+  // Timeline metadata editing state
+  const [isEditingMetadata, setIsEditingMetadata] = useState(false);
+  const [editMetadata, setEditMetadata] = useState({
+    name: timeline.name,
+    description: timeline.description || '',
+  });
+  const [isSavingMetadata, setIsSavingMetadata] = useState(false);
 
   // Grouping mode state
   const [grouping, setGrouping] = useState<Grouping>("daily");
@@ -63,6 +76,14 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
   const [timelineEvents, setTimelineEvents] = useState<Event[]>([]);
   // Order of groups (dates)
   const [groupOrder, setGroupOrder] = useState<string[]>(timeline.groupOrder || []);
+  
+  // Reset edit metadata when timeline changes
+  useEffect(() => {
+    setEditMetadata({
+      name: timeline.name,
+      description: timeline.description || '',
+    });
+  }, [timeline.name, timeline.description]);
   
   // Sort events based on sortPreference
   const sortEvents = useCallback((eventsToSort: Event[]) => {
@@ -296,6 +317,63 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
     setIsMessageBoxOpen(true);
   };
 
+  // Handle timeline metadata save
+  const handleSaveMetadata = async () => {
+    if (!editMetadata.name.trim()) {
+      return; // Don't save if name is empty
+    }
+
+    setIsSavingMetadata(true);
+    try {
+      const { data: updatedTimeline, error } = await timelineService.updateTimeline(timeline.id, {
+        name: editMetadata.name.trim(),
+        description: editMetadata.description.trim(),
+      });
+
+      if (error) {
+        console.error('Error updating timeline metadata:', error);
+        // Reset to original values on error
+        setEditMetadata({
+          name: timeline.name,
+          description: timeline.description || '',
+        });
+      } else if (updatedTimeline) {
+        setIsEditingMetadata(false);
+        onTimelineUpdate?.(updatedTimeline);
+      }
+    } catch (err) {
+      console.error('Unexpected error updating timeline metadata:', err);
+      // Reset to original values on error
+      setEditMetadata({
+        name: timeline.name,
+        description: timeline.description || '',
+      });
+    } finally {
+      setIsSavingMetadata(false);
+    }
+  };
+
+  // Handle timeline metadata cancel
+  const handleCancelMetadata = useCallback(() => {
+    setEditMetadata({
+      name: timeline.name,
+      description: timeline.description || '',
+    });
+    setIsEditingMetadata(false);
+  }, [timeline.name, timeline.description]);
+
+  // Handle escape key to cancel metadata editing
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isEditingMetadata) {
+        handleCancelMetadata();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isEditingMetadata, handleCancelMetadata]);
+
   // Handle sort preference change
   const handleSortChange = (newSortPreference: SortPreference) => {
     setSortPreference(newSortPreference);
@@ -371,25 +449,147 @@ export function Timeline({ timeline, mode = 'view' }: TimelineProps) {
         <div className="p-4 sm:p-6">
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-2xl sm:text-3xl font-bold text-text-primary">
-                {timeline.name}
-              </h2>
+              {/* Timeline Title - Editable in edit mode */}
+              {mode === 'edit' && isEditingMetadata ? (
+                <div className="flex-1 mr-4">
+                  <div className="space-y-1">
+                    <input
+                      type="text"
+                      value={editMetadata.name}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value.length <= 100) {
+                          setEditMetadata(prev => ({ ...prev, name: value }));
+                        }
+                      }}
+                      className={cn(
+                        'w-full px-3 py-2 rounded-lg border border-gray-300/30 dark:border-gray-600/30',
+                        'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
+                        'text-2xl sm:text-3xl font-bold text-text-primary',
+                        'focus:outline-none focus:ring-2 focus:ring-blue-500/50',
+                        'transition-all duration-200 hover:bg-white/80 dark:hover:bg-gray-800/80'
+                      )}
+                      autoFocus
+                      placeholder="Timeline title..."
+                    />
+                    <div className="flex justify-end">
+                      <span className="text-xs text-text-muted">
+                        {editMetadata.name.length}/100
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                             ) : (
+                 <div className="flex-1 mr-4">
+                   {mode === 'edit' ? (
+                     <button
+                       onClick={() => setIsEditingMetadata(true)}
+                       className="text-left w-full group flex items-center gap-2"
+                     >
+                       <h2 className="text-2xl sm:text-3xl font-bold text-text-primary group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                         {timeline.name}
+                       </h2>
+                       <FaPencilAlt className="w-4 h-4 text-text-muted group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-200 opacity-0 group-hover:opacity-100" />
+                     </button>
+                   ) : (
+                     <h2 className="text-2xl sm:text-3xl font-bold text-text-primary">
+                       {timeline.name}
+                     </h2>
+                   )}
+                 </div>
+               )}
+
+              {/* Action Buttons */}
               <div className="flex items-center gap-2">
-                <GlassButton
-                  onClick={handleForkTimeline}
-                  disabled={isForking}
-                  variant="primary"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <IoGitBranchOutline className="w-4 h-4" />
-                  {isForking ? 'Forking...' : 'Fork Timeline'}
-                </GlassButton>
+                {mode === 'edit' && isEditingMetadata && (
+                  <div className="flex items-center gap-1">
+                    <GlassButton
+                      onClick={handleCancelMetadata}
+                      variant="ghost"
+                      size="sm"
+                      disabled={isSavingMetadata}
+                      className="w-10 h-10 p-0 opacity-70 hover:opacity-100 transition-opacity"
+                      title="Cancel"
+                    >
+                      <IoClose className="w-5 h-5" />
+                    </GlassButton>
+                    <GlassButton
+                      onClick={handleSaveMetadata}
+                      variant="ghost"
+                      size="sm"
+                      disabled={isSavingMetadata || !editMetadata.name.trim()}
+                      className="w-10 h-10 p-0 opacity-70 hover:opacity-100 transition-opacity text-green-500 hover:text-green-600"
+                      title="Save"
+                    >
+                      {isSavingMetadata ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-500" />
+                      ) : (
+                        <IoCheckmark className="w-5 h-5" />
+                      )}
+                    </GlassButton>
+                  </div>
+                )}
+                {!isEditingMetadata && (
+                  <GlassButton
+                    onClick={handleForkTimeline}
+                    disabled={isForking}
+                    variant="primary"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <IoGitBranchOutline className="w-4 h-4" />
+                    {isForking ? 'Forking...' : 'Fork Timeline'}
+                  </GlassButton>
+                )}
               </div>
             </div>
-            <p className="text-text-secondary text-sm sm:text-base">
-              {timeline.description || 'Your chronological journey. Drag date pills to re-order event groups.'}
-            </p>
+
+            {/* Timeline Description - Editable in edit mode */}
+            {mode === 'edit' && isEditingMetadata ? (
+              <div className="space-y-1">
+                <textarea
+                  value={editMetadata.description}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value.length <= 500) {
+                      setEditMetadata(prev => ({ ...prev, description: value }));
+                    }
+                  }}
+                  className={cn(
+                    'w-full px-3 py-2 rounded-lg border border-gray-300/30 dark:border-gray-600/30',
+                    'bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm',
+                    'text-text-secondary text-sm sm:text-base resize-none',
+                    'focus:outline-none focus:ring-2 focus:ring-blue-500/50',
+                    'transition-all duration-200 hover:bg-white/80 dark:hover:bg-gray-800/80'
+                  )}
+                  rows={2}
+                  placeholder="Timeline description..."
+                />
+                <div className="flex justify-end">
+                  <span className="text-xs text-text-muted">
+                    {editMetadata.description.length}/500
+                  </span>
+                </div>
+              </div>
+                         ) : (
+               <div>
+                 {mode === 'edit' ? (
+                   <button
+                     onClick={() => setIsEditingMetadata(true)}
+                     className="text-left w-full group"
+                   >
+                     <p className="text-text-secondary text-sm sm:text-base group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors inline">
+                       {timeline.description || 'Your chronological journey. Drag date pills to re-order event groups.'}
+                       <FaPencilAlt className="w-3 h-3 text-text-muted group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-all duration-200 opacity-0 group-hover:opacity-100 ml-2 inline-block" />
+                     </p>
+                   </button>
+                 ) : (
+                   <p className="text-text-secondary text-sm sm:text-base">
+                     {timeline.description || 'Your chronological journey. Drag date pills to re-order event groups.'}
+                   </p>
+                 )}
+               </div>
+             )}
           </div>
 
           <div className="mb-6">
