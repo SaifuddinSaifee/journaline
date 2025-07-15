@@ -161,6 +161,7 @@ export function EventModal({
     setShowDeleteDialog(false);
     if (event?.id) {
       onDelete?.(event.id);
+      onClose(); // Close the modal after deleting
     }
   };
 

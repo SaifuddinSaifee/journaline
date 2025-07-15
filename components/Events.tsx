@@ -352,6 +352,7 @@ export function Events() {
         event={selectedEvent}
         allTimelines={allTimelines}
         associatedTimelines={selectedEvent ? getAssociatedTimelines(selectedEvent.timelineIds || []) : []}
+        onDelete={handleDeleteEvent}
       />
 
       <Toast
