@@ -1,10 +1,21 @@
 'use client';
 
 import React from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, isToday } from 'date-fns';
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameDay,
+  isSameMonth,
+  isToday,
+  startOfWeek,
+  endOfWeek
+} from 'date-fns';
 import { cn } from '../lib/utils';
 import GlassButton from './GlassButton';
 import { IoChevronBack, IoChevronForward } from 'react-icons/io5';
+import { IoAdd } from 'react-icons/io5';
 
 interface CalendarProps {
   selectedDate: Date | null;
@@ -15,9 +26,20 @@ interface CalendarProps {
 export function Calendar({ selectedDate, onDateSelect, className }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = React.useState(new Date());
   
+  // Get the first day of the current month
   const monthStart = startOfMonth(currentMonth);
+  // Get the last day of the current month
   const monthEnd = endOfMonth(currentMonth);
-  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  // Get the start of the first week (Sunday)
+  const calendarStart = startOfWeek(monthStart);
+  // Get the end of the last week
+  const calendarEnd = endOfWeek(monthEnd);
+  
+  // Get all days including padding days
+  const calendarDays = eachDayOfInterval({ 
+    start: calendarStart,
+    end: calendarEnd 
+  });
   
   const previousMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
@@ -26,16 +48,28 @@ export function Calendar({ selectedDate, onDateSelect, className }: CalendarProp
   const nextMonth = () => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
   };
-  
-  const goToToday = () => {
+
+  const handleAddEvent = () => {
     const today = new Date();
-    setCurrentMonth(today);
+    today.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+    onDateSelect(today);
   };
 
   return (
     <div className={cn('p-4', className)}>
+      {/* Add Event Button */}
+      <GlassButton
+        variant="ghost"
+        size="sm"
+        onClick={handleAddEvent}
+        className="w-full mb-4 flex items-center justify-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400"
+      >
+        <IoAdd className="w-5 h-5" />
+        Add Event
+      </GlassButton>
+
       <div className="mb-4">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-text-primary">
             {format(currentMonth, 'MMMM yyyy')}
           </h3>
@@ -58,15 +92,6 @@ export function Calendar({ selectedDate, onDateSelect, className }: CalendarProp
             </GlassButton>
           </div>
         </div>
-        
-        <GlassButton
-          variant="ghost"
-          size="sm"
-          onClick={goToToday}
-          className="w-full mb-4"
-        >
-          Today
-        </GlassButton>
       </div>
       
       {/* Days of week header */}
@@ -80,7 +105,7 @@ export function Calendar({ selectedDate, onDateSelect, className }: CalendarProp
       
       {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-1">
-        {days.map((day) => {
+        {calendarDays.map((day) => {
           const isSelected = selectedDate && isSameDay(day, selectedDate);
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isTodayDate = isToday(day);
@@ -101,8 +126,8 @@ export function Calendar({ selectedDate, onDateSelect, className }: CalendarProp
                 'hover:shadow-sm hover:scale-105',
                 
                 // Current month styling
-                isCurrentMonth && 'text-text-primary font-medium',
-                !isCurrentMonth && 'text-text-muted opacity-60',
+                isCurrentMonth ? 'text-text-primary font-medium' : 'text-text-muted opacity-40',
+                !isCurrentMonth && 'hover:opacity-60',
                 
                 // Today styling (when not selected)
                 isTodayDate && !isSelected && 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 ring-2 ring-blue-200 dark:ring-blue-700/50 hover:bg-blue-100 dark:hover:bg-blue-900/30 font-semibold',

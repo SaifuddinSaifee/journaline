@@ -141,6 +141,7 @@ const GlassMessageBox: React.FC<GlassMessageBoxProps> = ({
           )}
         >
           <GlassCard 
+            variant="opaque"
             className={cn(
               sizeConfig.padding,
               'border-2',
