@@ -22,6 +22,7 @@ interface EventCardProps {
   onEdit?: (event: Event) => void;
   onDelete?: (eventId: string) => void;
   onView?: (event: Event) => void;
+  onEditModal?: (event: Event) => void; // Add this new prop for opening edit modal
   className?: string;
   allTimelines: Timeline[];
   associatedTimelines: Timeline[]; // Add this prop to avoid recalculation
@@ -32,6 +33,7 @@ export function EventCard({
   onEdit,
   onDelete,
   onView,
+  onEditModal,
   className,
   allTimelines,
   associatedTimelines,
@@ -47,7 +49,7 @@ export function EventCard({
   // Remove inline editing handlers - Edit button will now trigger modal
   const handleEdit = () => {
     setIsActionsDropdownOpen(false);
-    onView?.(event); // Open modal instead of inline editing
+    onEditModal?.(event); // Use onEditModal for edit button, opens directly in edit mode
   };
 
   const handleDelete = () => {
