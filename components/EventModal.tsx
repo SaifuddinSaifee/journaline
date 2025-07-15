@@ -28,6 +28,7 @@ interface EventModalProps {
   allTimelines: Timeline[]; // Add this prop
   associatedTimelines?: Timeline[]; // Add this prop for existing events
   onDelete?: (eventId: string) => void; // Add this prop for deleting events
+  initialMode?: 'view' | 'edit'; // Add this prop to control initial mode
 }
 
 // Local type that ensures date is required
@@ -44,6 +45,7 @@ export function EventModal({
   allTimelines,
   associatedTimelines = [], // Default to empty array if not provided
   onDelete,
+  initialMode = 'view', // Default to view mode
 }: EventModalProps) {
   const router = useRouter();
   const [isEditMode, setIsEditMode] = useState(false);
@@ -68,7 +70,7 @@ export function EventModal({
           timelineIds: event.timelineIds || [],
           date: event.date,
         });
-        setIsEditMode(false);
+        setIsEditMode(initialMode === 'edit'); // Use initialMode to set edit state
       } else {
         setFormData({
           title: "",
@@ -76,11 +78,11 @@ export function EventModal({
           timelineIds: [],
           date: selectedDate?.toISOString() || new Date().toISOString(),
         });
-        setIsEditMode(true);
+        setIsEditMode(true); // New events always start in edit mode
       }
       setIsDirty(false);
     }
-  }, [isOpen, event, selectedDate]);
+  }, [isOpen, event, selectedDate, initialMode]); // Add initialMode to dependencies
 
   const handleEditModeToggle = () => {
     if (isEditMode && isDirty) {
@@ -161,6 +163,7 @@ export function EventModal({
     setShowDeleteDialog(false);
     if (event?.id) {
       onDelete?.(event.id);
+      onClose(); // Close the modal after deleting
     }
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import { cn } from "../lib/utils";
@@ -8,8 +8,6 @@ import GlassCard from "./GlassCard";
 import GlassButton from "./GlassButton";
 import { Event, Timeline } from "../lib/types";
 import {
-  IoCheckmark,
-  IoClose,
   IoTrash,
   IoChevronDown,
   IoEllipsisVertical,
@@ -22,6 +20,7 @@ interface EventCardProps {
   onEdit?: (event: Event) => void;
   onDelete?: (eventId: string) => void;
   onView?: (event: Event) => void;
+  onEditModal?: (event: Event) => void; // Add this new prop for opening edit modal
   className?: string;
   allTimelines: Timeline[];
   associatedTimelines: Timeline[]; // Add this prop to avoid recalculation
@@ -32,16 +31,12 @@ export function EventCard({
   onEdit,
   onDelete,
   onView,
+  onEditModal,
   className,
   allTimelines,
   associatedTimelines,
 }: EventCardProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [isDateEditing, setIsDateEditing] = useState(false);
-  const [editData, setEditData] = useState({
-    title: event.title,
-    description: event.description,
-  });
+  // Remove inline editing states - we only need dropdown states now
   const [isTimelineDropdownOpen, setIsTimelineDropdownOpen] = useState(false);
   const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false);
 
@@ -49,52 +44,10 @@ export function EventCard({
   const titleRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLDivElement>(null);
 
-  // Remove the useEffect for fetching associated timelines since we now receive them as props
-
+  // Remove inline editing handlers - Edit button will now trigger modal
   const handleEdit = () => {
-    setIsEditing(true);
     setIsActionsDropdownOpen(false);
-  };
-
-  const handleSave = () => {
-    if (editData.title.trim() && editData.description.trim()) {
-      const updatedEvent: Event = {
-        ...event,
-        title: editData.title,
-        description: editData.description,
-        timelineIds: event.timelineIds || [],
-        updatedAt: new Date().toISOString(),
-      };
-      onEdit?.(updatedEvent);
-      setIsEditing(false);
-    }
-  };
-
-  const handleCancel = useCallback(() => {
-    setEditData({
-      title: event.title,
-      description: event.description,
-    });
-    setIsEditing(false);
-    setIsDateEditing(false);
-  }, [event.title, event.description]);
-
-  const handleDateClick = () => {
-    setIsDateEditing(true);
-  };
-
-  const handleDateChange = (newDate: string) => {
-    const updatedEvent: Event = {
-      ...event,
-      date: newDate,
-      updatedAt: new Date().toISOString(),
-    };
-    onEdit?.(updatedEvent);
-    setIsDateEditing(false);
-  };
-
-  const handleDateCancel = () => {
-    setIsDateEditing(false);
+    onEditModal?.(event); // Use onEditModal for edit button, opens directly in edit mode
   };
 
   const handleDelete = () => {
@@ -117,20 +70,7 @@ export function EventCard({
     onEdit?.(updatedEvent);
   };
 
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (isEditing) {
-          handleCancel();
-        } else if (isDateEditing) {
-          handleDateCancel();
-        }
-      }
-    };
-
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [isEditing, isDateEditing, handleCancel]);
+  // Remove escape key handler since no inline editing
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -172,207 +112,109 @@ export function EventCard({
       )}
       onClick={handleCardClick}
     >
-      {/* Title Row - Fixed Height */}
+      {/* Title Row - Fixed Height - Remove inline editing UI */}
       <div className="flex justify-between items-start mb-2 min-h-[3rem]">
         <div className="flex-1 pr-2">
-          {isEditing ? (
-            <div className="space-y-1">
-              <input
-                type="text"
-                value={editData.title}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value.length <= 35) {
-                    setEditData((prev) => ({ ...prev, title: value }));
-                  }
-                }}
-                className="w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm text-text-primary text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-200"
-                autoFocus
-                placeholder="Event title..."
-              />
-              <div className="flex justify-end">
-                <span className="text-xs text-text-muted">
-                  {editData.title.length}/35
-                </span>
-              </div>
+          <div className="space-y-1">
+            <div
+              ref={titleRef}
+              className="text-lg font-semibold text-text-primary break-words"
+            >
+              {event.title}
             </div>
-          ) : (
-            <div className="space-y-1">
-              <div
-                ref={titleRef}
-                className="text-lg font-semibold text-text-primary break-words"
-              >
-                {event.title}
+          </div>
+        </div>
+
+        <div className="relative actions-dropdown flex-shrink-0">
+          <GlassButton
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsActionsDropdownOpen(!isActionsDropdownOpen)}
+            title="Actions"
+          >
+            <IoEllipsisVertical className="w-5 h-5" />
+          </GlassButton>
+
+          {isActionsDropdownOpen && (
+            <div className="absolute right-0 mt-1 bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg border border-gray-300/30 dark:border-gray-700/30 rounded-lg shadow-xl z-20 min-w-32">
+              <div className="py-1">
+                <button
+                  onClick={handleEdit}
+                  className="w-full px-3 py-2 text-left text-sm text-text-primary hover:bg-gray-100/50 dark:hover:bg-gray-700/50 flex items-center space-x-2"
+                >
+                  <FaPencilAlt className="w-4 h-4" />
+                  <span>Edit</span>
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50/50 dark:hover:bg-red-900/20 flex items-center space-x-2"
+                >
+                  <IoTrash className="w-4 h-4" />
+                  <span>Delete</span>
+                </button>
               </div>
             </div>
           )}
         </div>
-
-        {isEditing ? (
-          <div className="flex space-x-1 flex-shrink-0">
-            <GlassButton
-              variant="ghost"
-              size="sm"
-              onClick={handleCancel}
-              title="Cancel"
-            >
-              <IoClose className="w-6 h-6" />
-            </GlassButton>
-            <GlassButton
-              variant="ghost"
-              size="sm"
-              onClick={handleSave}
-              title="Save"
-            >
-              <IoCheckmark className="w-6 h-6" />
-            </GlassButton>
-          </div>
-        ) : (
-          <div className="relative actions-dropdown flex-shrink-0">
-            <GlassButton
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsActionsDropdownOpen(!isActionsDropdownOpen)}
-              title="Actions"
-            >
-              <IoEllipsisVertical className="w-5 h-5" />
-            </GlassButton>
-
-            {isActionsDropdownOpen && (
-              <div className="absolute right-0 mt-1 bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg border border-gray-300/30 dark:border-gray-700/30 rounded-lg shadow-xl z-20 min-w-32">
-                <div className="py-1">
-                  <button
-                    onClick={handleEdit}
-                    className="w-full px-3 py-2 text-left text-sm text-text-primary hover:bg-gray-100/50 dark:hover:bg-gray-700/50 flex items-center space-x-2"
-                  >
-                    <FaPencilAlt className="w-4 h-4" />
-                    <span>Edit</span>
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50/50 dark:hover:bg-red-900/20 flex items-center space-x-2"
-                  >
-                    <IoTrash className="w-4 h-4" />
-                    <span>Delete</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* Date Row - Fixed Height for Consistent Alignment */}
+      {/* Date Row - Fixed Height - Remove inline editing UI */}
       <div className="mb-3 min-h-[2rem] flex items-start">
         <div className="w-full">
-          {isDateEditing ? (
-            <div className="flex items-center space-x-2">
-              <input
-                type="date"
-                value={event.date.split("T")[0]} // Convert ISO date to YYYY-MM-DD format
-                onChange={(e) => {
-                  const newDate = new Date(e.target.value);
-                  newDate.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
-                  handleDateChange(newDate.toISOString());
-                }}
-                className="px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                autoFocus
-              />
-              <GlassButton
-                variant="ghost"
-                size="sm"
-                onClick={handleDateCancel}
-                title="Cancel"
-              >
-                <IoClose className="w-4 h-4" />
-              </GlassButton>
-            </div>
-          ) : (
-            <button
-              onClick={handleDateClick}
-              className="text-sm text-text-muted hover:text-text-primary transition-colors cursor-pointer text-left"
-              title="Click to change date"
-            >
-              {format(new Date(event.date), "MMMM d")}
-            </button>
-          )}
+          <div className="text-sm text-text-muted">
+            {format(new Date(event.date), "MMMM d")}
+          </div>
         </div>
       </div>
 
-      {/* Description - Flexible Height */}
+      {/* Description - Flexible Height - Remove inline editing UI */}
       <div className="mb-4 flex-grow">
-        {isEditing ? (
-          <div className="space-y-2">
-            <div className="space-y-1">
-              <textarea
-                value={editData.description}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value.length <= 250) {
-                    setEditData((prev) => ({ ...prev, description: value }));
-                  }
+        <div className="space-y-2">
+          <div className="prose prose-sm max-w-none dark:prose-invert">
+            <div
+              ref={descriptionRef}
+              className="text-text-secondary break-words"
+            >
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => (
+                    <p className="text-text-secondary mb-2 last:mb-0 break-words">
+                      {children}
+                    </p>
+                  ),
+                  strong: ({ children }) => (
+                    <strong className="text-text-primary font-semibold break-words">
+                      {children}
+                    </strong>
+                  ),
+                  em: ({ children }) => (
+                    <em className="text-text-secondary italic break-words">{children}</em>
+                  ),
+                  ul: ({ children }) => (
+                    <ul className="text-text-secondary ml-4 list-disc break-words">
+                      {children}
+                    </ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="text-text-secondary ml-4 list-decimal break-words">
+                      {children}
+                    </ol>
+                  ),
+                  li: ({ children }) => (
+                    <li className="text-text-secondary mb-1 break-words">{children}</li>
+                  ),
+                  code: ({ children }) => (
+                    <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm font-mono text-text-primary break-all">
+                      {children}
+                    </code>
+                  ),
                 }}
-                className="w-full px-2 py-1 rounded-lg border border-gray-300/30 dark:border-gray-600/30 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm text-text-primary resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                rows={3}
-                placeholder="Event description..."
-              />
-              <div className="flex justify-end">
-                <span className="text-xs text-text-muted">
-                  {editData.description.length}/250
-                </span>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="prose prose-sm max-w-none dark:prose-invert">
-              <div
-                ref={descriptionRef}
-                className="text-text-secondary break-words"
               >
-                <ReactMarkdown
-                  components={{
-                    p: ({ children }) => (
-                      <p className="text-text-secondary mb-2 last:mb-0 break-words">
-                        {children}
-                      </p>
-                    ),
-                    strong: ({ children }) => (
-                      <strong className="text-text-primary font-semibold break-words">
-                        {children}
-                      </strong>
-                    ),
-                    em: ({ children }) => (
-                      <em className="text-text-secondary italic break-words">{children}</em>
-                    ),
-                    ul: ({ children }) => (
-                      <ul className="text-text-secondary ml-4 list-disc break-words">
-                        {children}
-                      </ul>
-                    ),
-                    ol: ({ children }) => (
-                      <ol className="text-text-secondary ml-4 list-decimal break-words">
-                        {children}
-                      </ol>
-                    ),
-                    li: ({ children }) => (
-                      <li className="text-text-secondary mb-1 break-words">{children}</li>
-                    ),
-                    code: ({ children }) => (
-                      <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm font-mono text-text-primary break-all">
-                        {children}
-                      </code>
-                    ),
-                  }}
-                >
-                  {event.description}
-                </ReactMarkdown>
-              </div>
+                {event.description}
+              </ReactMarkdown>
             </div>
-
-            {/* Remove show more/less buttons section */}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Timeline Avatars */}
@@ -431,7 +273,6 @@ export function EventCard({
             )}
           </div>
         )}
-        {/* Old timeline badges removed in favor of avatar group */}
       </div>
     </GlassCard>
   );

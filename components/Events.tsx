@@ -17,6 +17,7 @@ export function Events() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | undefined>(undefined);
+  const [modalMode, setModalMode] = useState<'view' | 'edit'>('view'); // Add modal mode state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [migrating, setMigrating] = useState(false);
@@ -85,6 +86,7 @@ export function Events() {
   useEffect(() => {
     const handleDateSelect = (event: CustomEvent) => {
       setSelectedDate(event.detail.date);
+      setModalMode('edit'); // New events should open in edit mode
       setIsModalOpen(true);
     };
 
@@ -224,6 +226,14 @@ export function Events() {
   const handleViewEvent = (event: Event) => {
     setSelectedEvent(event);
     setSelectedDate(null);
+    setModalMode('view'); // Open in view mode
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (event: Event) => {
+    setSelectedEvent(event);
+    setSelectedDate(null);
+    setModalMode('edit'); // Open directly in edit mode
     setIsModalOpen(true);
   };
 
@@ -231,6 +241,7 @@ export function Events() {
     setIsModalOpen(false);
     setSelectedDate(null);
     setSelectedEvent(undefined);
+    setModalMode('view'); // Reset to default
   };
 
   // Group events by month-year
@@ -331,6 +342,7 @@ export function Events() {
                           onEdit={handleEditEvent}
                           onDelete={handleDeleteEvent}
                           onView={handleViewEvent}
+                          onEditModal={handleOpenEditModal}
                           allTimelines={allTimelines}
                           associatedTimelines={associatedTimelines}
                         />
@@ -352,6 +364,8 @@ export function Events() {
         event={selectedEvent}
         allTimelines={allTimelines}
         associatedTimelines={selectedEvent ? getAssociatedTimelines(selectedEvent.timelineIds || []) : []}
+        onDelete={handleDeleteEvent}
+        initialMode={modalMode}
       />
 
       <Toast
