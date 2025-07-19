@@ -37,10 +37,10 @@ export function Sidebar({ className }: SidebarProps) {
         isCollapsed ? 'w-16' : 'w-64',
         className
       )}>
-        <div className="h-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-r border-gray-200/30 dark:border-gray-700/30 relative">
+        <div className="h-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-r border-gray-200/30 dark:border-gray-700/30 relative flex flex-col">
           
           {/* Sidebar Header */}
-          <div className="p-4 border-b border-gray-200/20 dark:border-gray-700/20 flex items-center justify-end">
+          <div className="p-4 border-b border-gray-200/20 dark:border-gray-700/20 flex items-center justify-end flex-shrink-0">
             {/* Standard Collapse Toggle */}
             <GlassButton
               variant="ghost"
@@ -58,16 +58,35 @@ export function Sidebar({ className }: SidebarProps) {
             </GlassButton>
           </div>
 
-          {/* Calendar Content */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Top Content Area - Space for future content */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {!isCollapsed ? (
+              <div className="space-y-4">
+                {/* Future content can go here */}
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  {/* This area is available for future sidebar content */}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Collapsed state icons for future content */}
+              </div>
+            )}
+          </div>
+
+          {/* Calendar Section - Anchored to bottom */}
+          <div className="flex-shrink-0 border-t border-gray-200/20 dark:border-gray-700/20">
             {!isCollapsed ? (
               <Calendar
                 selectedDate={selectedDate}
                 onDateSelect={handleDateSelect}
               />
             ) : (
-              <div className="p-2">
-                {/* Collapsed state - minimal calendar icon could go here if needed */}
+              <div className="p-2 flex justify-center">
+                {/* Collapsed state - minimal calendar icon */}
+                <div className="w-8 h-8 rounded bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">📅</span>
+                </div>
               </div>
             )}
           </div>
