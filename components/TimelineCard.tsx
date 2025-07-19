@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
-import { IoCalendarOutline, IoEyeOutline, IoCheckmark, IoClose, IoTrash } from 'react-icons/io5';
+import { IoCalendarOutline, IoEyeOutline, IoCheckmark, IoClose, IoRemoveCircleOutline } from 'react-icons/io5';
 import { FaPencilAlt } from 'react-icons/fa';
 import ReactMarkdown from 'react-markdown';
 import { Event } from '../lib/types';
@@ -66,7 +66,7 @@ export function TimelineCard({ event, className, onEdit, onDelete, mode = 'view'
   }, [event.title, event.description, event.timelineIds]);
 
   const handleDelete = () => {
-    if (window.confirm('Are you sure you want to delete this timeline event?')) {
+    if (window.confirm('Are you sure you want to remove this event from the timeline? The event will remain in your library and other timelines.')) {
       onDelete?.(event.id);
     }
     setShowActions(false);
@@ -122,9 +122,9 @@ export function TimelineCard({ event, className, onEdit, onDelete, mode = 'view'
               size="sm"
               onClick={handleDelete}
               className="w-10 h-10 p-0 opacity-70 hover:opacity-100 transition-opacity text-red-500 hover:text-red-600"
-              title="Delete event"
+              title="Remove from timeline"
             >
-              <IoTrash className="w-6 h-6" />
+              <IoRemoveCircleOutline className="w-6 h-6" />
             </GlassButton>
           )}
         </div>

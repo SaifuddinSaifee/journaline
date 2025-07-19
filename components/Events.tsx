@@ -195,6 +195,7 @@ export function Events() {
   };
 
   const handleDeleteEvent = async (eventId: string) => {
+    console.log(`🗑️ EVENTS DASHBOARD: Permanently deleting event ${eventId}`);
     try {
       const result = await eventService.deleteEvent(eventId);
 
@@ -272,8 +273,11 @@ export function Events() {
       <GlassCard padding='none' variant="default" hover={false} className="min-h-96">
         <div className="p-6">
           <div className="mb-6">
-            <h2 className="text-3xl font-bold text-text-primary mb-2">
+            <h2 className="text-3xl font-bold text-text-primary mb-2 flex items-baseline gap-3">
               Events
+              <span className="text-lg font-normal text-text-muted">
+                {events.length} {events.length === 1 ? 'event' : 'events'}
+              </span>
             </h2>
             <p className="text-text-secondary">
               Your journal entries and events. Select a date from the calendar to add new entries.
