@@ -195,6 +195,7 @@ export function Events() {
   };
 
   const handleDeleteEvent = async (eventId: string) => {
+    console.log(`🗑️ EVENTS DASHBOARD: Permanently deleting event ${eventId}`);
     try {
       const result = await eventService.deleteEvent(eventId);
 

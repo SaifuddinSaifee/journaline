@@ -254,6 +254,8 @@ export function Timeline({ timeline, mode = 'view', onTimelineUpdate }: Timeline
   };
 
   const handleDeleteEvent = async (eventId: string) => {
+    console.log(`🗑️ TIMELINE EDIT MODE: Removing event ${eventId} from timeline ${timeline.id} (NOT permanently deleting)`);
+    
     try {
       // Get the current event data to ensure we have the complete timelineIds array
       const { data: currentEvent, error: fetchError } = await eventService.getEventById(eventId);
@@ -263,24 +265,29 @@ export function Timeline({ timeline, mode = 'view', onTimelineUpdate }: Timeline
         return;
       }
 
+      console.log(`📋 Event before removal - timelineIds:`, currentEvent.timelineIds);
+
       // Remove current timeline ID from the event's timelineIds
       const updatedTimelineIds = currentEvent.timelineIds.filter(id => id !== timeline.id);
       
+      console.log(`📝 Event after removal - timelineIds:`, updatedTimelineIds);
+
       // Update the event with the new timelineIds (removing this timeline)
       const result = await eventService.updateEvent(eventId, {
         timelineIds: updatedTimelineIds
       });
       
       if (result.error) {
-        console.error('Error removing event from timeline:', result.error);
+        console.error('❌ Error removing event from timeline:', result.error);
       } else {
-        console.log(`Event ${eventId} removed from timeline ${timeline.id}. Event still exists with timelines:`, updatedTimelineIds);
+        console.log(`✅ SUCCESS: Event ${eventId} removed from timeline ${timeline.id}. Event still exists with timelines:`, updatedTimelineIds);
+        console.log('🔄 Refreshing timeline events and notifying other components...');
         refetch(); // Refetch all events for this timeline
         const event = new CustomEvent('events-updated'); // Notify other components
         window.dispatchEvent(event);
       }
     } catch (err) {
-      console.error('Unexpected error removing event from timeline:', err);
+      console.error('💥 Unexpected error removing event from timeline:', err);
     }
   };
 
