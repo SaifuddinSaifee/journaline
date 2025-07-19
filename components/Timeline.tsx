@@ -254,13 +254,33 @@ export function Timeline({ timeline, mode = 'view', onTimelineUpdate }: Timeline
   };
 
   const handleDeleteEvent = async (eventId: string) => {
-    const result = await eventService.deleteEvent(eventId);
-    if (result.error) {
-      console.error('Error deleting event:', result.error);
-    } else {
-      refetch(); // Refetch all events for this timeline
-      const event = new CustomEvent('events-updated'); // Notify other components
-      window.dispatchEvent(event);
+    try {
+      // Get the current event data to ensure we have the complete timelineIds array
+      const { data: currentEvent, error: fetchError } = await eventService.getEventById(eventId);
+      
+      if (fetchError || !currentEvent) {
+        console.error('Error fetching event:', fetchError || 'Event not found');
+        return;
+      }
+
+      // Remove current timeline ID from the event's timelineIds
+      const updatedTimelineIds = currentEvent.timelineIds.filter(id => id !== timeline.id);
+      
+      // Update the event with the new timelineIds (removing this timeline)
+      const result = await eventService.updateEvent(eventId, {
+        timelineIds: updatedTimelineIds
+      });
+      
+      if (result.error) {
+        console.error('Error removing event from timeline:', result.error);
+      } else {
+        console.log(`Event ${eventId} removed from timeline ${timeline.id}. Event still exists with timelines:`, updatedTimelineIds);
+        refetch(); // Refetch all events for this timeline
+        const event = new CustomEvent('events-updated'); // Notify other components
+        window.dispatchEvent(event);
+      }
+    } catch (err) {
+      console.error('Unexpected error removing event from timeline:', err);
     }
   };
 
