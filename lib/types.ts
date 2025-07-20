@@ -156,11 +156,14 @@ export interface DragState {
   isDragging: boolean;
   draggedEvent: DragEvent | null;
   dragOrigin: 'sidebar' | null;
+  isHoveringDropZone: boolean;
+  dragStartPosition: { x: number; y: number } | null;
 }
 
 export interface DragContextType {
   dragState: DragState;
-  startDrag: (event: Event, origin: 'sidebar') => void;
+  startDrag: (event: Event, origin: 'sidebar', startPosition?: { x: number; y: number }) => void;
   endDrag: () => void;
   setDraggedEvent: (event: DragEvent | null) => void;
+  setHoveringDropZone: (isHovering: boolean) => void;
 } 

@@ -14,9 +14,11 @@ export function DragProvider({ children }: DragProviderProps) {
     isDragging: false,
     draggedEvent: null,
     dragOrigin: null,
+    isHoveringDropZone: false,
+    dragStartPosition: null,
   });
 
-  const startDrag = (event: Event, origin: 'sidebar') => {
+  const startDrag = (event: Event, origin: 'sidebar', startPosition?: { x: number; y: number }) => {
     const dragEvent: DragEvent = {
       id: event.id,
       title: event.title,
@@ -31,6 +33,8 @@ export function DragProvider({ children }: DragProviderProps) {
       isDragging: true,
       draggedEvent: dragEvent,
       dragOrigin: origin,
+      isHoveringDropZone: false,
+      dragStartPosition: startPosition || null,
     });
   };
 
@@ -39,6 +43,8 @@ export function DragProvider({ children }: DragProviderProps) {
       isDragging: false,
       draggedEvent: null,
       dragOrigin: null,
+      isHoveringDropZone: false,
+      dragStartPosition: null,
     });
   };
 
@@ -49,11 +55,19 @@ export function DragProvider({ children }: DragProviderProps) {
     }));
   };
 
+  const setHoveringDropZone = (isHovering: boolean) => {
+    setDragState(prev => ({
+      ...prev,
+      isHoveringDropZone: isHovering,
+    }));
+  };
+
   const value: DragContextType = {
     dragState,
     startDrag,
     endDrag,
     setDraggedEvent,
+    setHoveringDropZone,
   };
 
   return (

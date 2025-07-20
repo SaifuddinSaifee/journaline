@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Event } from '../lib/types';
 import { eventService } from '../lib/eventService';
 import { IoCalendarOutline, IoAdd, IoCheckmark } from 'react-icons/io5';
 import { format } from 'date-fns';
-import { motion, PanInfo } from 'framer-motion';
+import { motion, PanInfo, animate } from 'framer-motion';
 import GlassButton from './GlassButton';
 import { useDrag } from './DragContext';
 
@@ -21,25 +21,11 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
   const [error, setError] = useState<string | null>(null);
   const [addingEventIds, setAddingEventIds] = useState<Set<string>>(new Set());
   const [draggedEventId, setDraggedEventId] = useState<string | null>(null);
+  const [dragStartPositions, setDragStartPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
   
-  const { startDrag, endDrag, dragState } = useDrag();
+  const { startDrag, endDrag, dragState, setHoveringDropZone } = useDrag();
 
-  useEffect(() => {
-    loadEvents();
-  }, []);
-
-  // Listen for events updates
-  useEffect(() => {
-    const handleEventUpdate = () => {
-      console.log('EventQuickAdd: Received events-updated event, refreshing event list...');
-      loadEvents();
-    };
-
-    window.addEventListener('events-updated', handleEventUpdate);
-    return () => window.removeEventListener('events-updated', handleEventUpdate);
-  }, []);
-
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -62,7 +48,22 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
     } finally {
       setLoading(false);
     }
-  };
+  }, [timelineId]);
+
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
+
+  // Listen for events updates
+  useEffect(() => {
+    const handleEventUpdate = () => {
+      console.log('EventQuickAdd: Received events-updated event, refreshing event list...');
+      loadEvents();
+    };
+
+    window.addEventListener('events-updated', handleEventUpdate);
+    return () => window.removeEventListener('events-updated', handleEventUpdate);
+  }, [loadEvents]);
 
   const handleAddEvent = async (event: Event) => {
     if (addingEventIds.has(event.id)) return;
@@ -99,34 +100,100 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
     }
   };
 
-  const handleDragStart = (event: Event) => {
+  const handleDragStart = (event: Event, element: HTMLElement) => {
     setDraggedEventId(event.id);
-    startDrag(event, 'sidebar');
+    
+    // Get the element's position relative to the viewport
+    const rect = element.getBoundingClientRect();
+    const startPosition = { x: rect.left, y: rect.top };
+    
+    // Store start position for this specific event
+    setDragStartPositions(prev => new Map(prev).set(event.id, startPosition));
+    
+    startDrag(event, 'sidebar', startPosition);
   };
 
-  const handleDragEnd = (event: Event, info: PanInfo) => {
-    setDraggedEventId(null);
-    
-    // Check if drag ended over timeline area (right side of screen)
+  const handleDrag = (event: Event, info: PanInfo) => {
+    // Check if we're hovering over the timeline drop zone
     const timeline = document.querySelector('[data-timeline-drop-zone]');
     if (timeline) {
       const timelineRect = timeline.getBoundingClientRect();
       const dragX = info.point.x;
       const dragY = info.point.y;
       
-      // Check if drop point is within timeline bounds
-      if (
+      const isOverTimeline = (
         dragX >= timelineRect.left &&
         dragX <= timelineRect.right &&
         dragY >= timelineRect.top &&
         dragY <= timelineRect.bottom
-      ) {
-        // Successfully dropped on timeline
-        handleAddEvent(event);
+      );
+      
+      setHoveringDropZone(isOverTimeline);
+    }
+  };
+
+  const handleDragEnd = async (event: Event, info: PanInfo, element: HTMLElement) => {
+    setDraggedEventId(null);
+    
+    // Check if drag ended over timeline area
+    const timeline = document.querySelector('[data-timeline-drop-zone]');
+    let droppedOnTimeline = false;
+    
+    if (timeline) {
+      const timelineRect = timeline.getBoundingClientRect();
+      const dragX = info.point.x;
+      const dragY = info.point.y;
+      
+      droppedOnTimeline = (
+        dragX >= timelineRect.left &&
+        dragX <= timelineRect.right &&
+        dragY >= timelineRect.top &&
+        dragY <= timelineRect.bottom
+      );
+    }
+    
+    if (droppedOnTimeline) {
+      // Successfully dropped on timeline - add the event
+      await handleAddEvent(event);
+    } else {
+      // Not dropped on timeline - animate back to original position
+      const startPos = dragStartPositions.get(event.id);
+      if (startPos && element) {
+        const currentRect = element.getBoundingClientRect();
+        const deltaX = startPos.x - currentRect.left;
+        const deltaY = startPos.y - currentRect.top;
+        
+        // Animate back to original position
+        await animate(element, {
+          x: deltaX,
+          y: deltaY,
+        }, {
+          type: "spring",
+          stiffness: 300,
+          damping: 30,
+          duration: 0.6,
+        });
+        
+        // Reset position after animation
+        await animate(element, {
+          x: 0,
+          y: 0,
+        }, {
+          duration: 0,
+        });
       }
     }
     
+    // Clear hover state and end drag
+    setHoveringDropZone(false);
     endDrag();
+    
+    // Clean up start position
+    setDragStartPositions(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(event.id);
+      return newMap;
+    });
   };
 
   if (isCollapsed) {
@@ -141,15 +208,29 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
             drag
             dragMomentum={false}
             dragElastic={0}
-            onDragStart={() => handleDragStart(event)}
-            onDragEnd={(_, info) => handleDragEnd(event, info)}
+            dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+            onDragStart={(_, info) => {
+              const element = info.point.x ? document.elementFromPoint(info.point.x, info.point.y)?.closest('[data-event-card]') as HTMLElement : null;
+              if (element) handleDragStart(event, element);
+            }}
+            onDrag={(_, info) => handleDrag(event, info)}
+            onDragEnd={(_, info) => {
+              const element = info.point.x ? document.elementFromPoint(info.point.x, info.point.y)?.closest('[data-event-card]') as HTMLElement : null;
+              if (element) handleDragEnd(event, info, element);
+            }}
             whileDrag={{ 
               scale: 1.1, 
               rotate: 5,
               zIndex: 50,
-              opacity: 0.8 
+              opacity: 0.8,
+              transition: { type: "spring", stiffness: 300, damping: 20 }
             }}
+            animate={{
+              opacity: draggedEventId === event.id ? 0.3 : 1,
+            }}
+            transition={{ duration: 0.2 }}
             className="cursor-grab active:cursor-grabbing"
+            data-event-card
           >
             <GlassButton
               variant="ghost"
@@ -216,21 +297,32 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
                 drag
                 dragMomentum={false}
                 dragElastic={0}
-                onDragStart={() => handleDragStart(event)}
-                onDragEnd={(_, info) => handleDragEnd(event, info)}
+                dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                onDragStart={(_, info) => {
+                  const element = info.point.x ? document.elementFromPoint(info.point.x, info.point.y)?.closest('[data-event-card]') as HTMLElement : null;
+                  if (element) handleDragStart(event, element);
+                }}
+                onDrag={(_, info) => handleDrag(event, info)}
+                onDragEnd={(_, info) => {
+                  const element = info.point.x ? document.elementFromPoint(info.point.x, info.point.y)?.closest('[data-event-card]') as HTMLElement : null;
+                  if (element) handleDragEnd(event, info, element);
+                }}
                 whileDrag={{ 
                   scale: 1.05, 
                   rotate: 3,
                   zIndex: 50,
                   opacity: 0.9,
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
+                  transition: { type: "spring", stiffness: 300, damping: 20 }
                 }}
                 animate={{
-                  opacity: isDragging ? 0.5 : 1,
+                  opacity: isDragging ? 0.3 : 1,
                 }}
+                transition={{ duration: 0.2 }}
                 className={`p-3 rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/70 dark:bg-gray-800/70 shadow-sm hover:shadow-md transition-all duration-200 group backdrop-blur-sm hover:bg-gray-50/80 dark:hover:bg-gray-700/60 ${
                   isDragging ? 'cursor-grabbing' : 'cursor-grab'
                 }`}
+                data-event-card
               >
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">

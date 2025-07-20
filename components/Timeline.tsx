@@ -482,13 +482,15 @@ export function Timeline({ timeline, mode = 'view', onTimelineUpdate }: Timeline
       <GlassCard 
         variant="default" 
         className={cn(
-          "min-h-96 transition-all duration-300",
-          dragState.isDragging && mode === 'edit' && "ring-2 ring-blue-500/50 ring-offset-2 ring-offset-transparent shadow-xl"
+          "min-h-96 transition-all duration-300 relative",
+          dragState.isDragging && mode === 'edit' && "ring-2 ring-blue-500/50 ring-offset-2 ring-offset-transparent shadow-xl",
+          dragState.isHoveringDropZone && mode === 'edit' && "ring-4 ring-blue-400/60"
         )}
         data-timeline-drop-zone
       >
         <div className="p-4 sm:p-6">
-          {dragState.isDragging && mode === 'edit' && (
+          {/* Base drag state overlay - shown when dragging but not hovering */}
+          {dragState.isDragging && !dragState.isHoveringDropZone && mode === 'edit' && (
             <div className="absolute inset-2 border-2 border-dashed border-blue-500/50 rounded-lg bg-blue-50/20 dark:bg-blue-950/20 flex items-center justify-center z-[5] pointer-events-none">
               <div className="text-center">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-500/20 flex items-center justify-center">
@@ -503,6 +505,36 @@ export function Timeline({ timeline, mode = 'view', onTimelineUpdate }: Timeline
               </div>
             </div>
           )}
+
+          {/* Enhanced hover overlay - shown when hovering over timeline */}
+          {dragState.isHoveringDropZone && mode === 'edit' && (
+            <>
+              {/* Blur overlay */}
+              <div className="absolute inset-0 rounded-lg bg-blue-500/10 dark:bg-blue-400/10 backdrop-blur-sm z-[10] pointer-events-none" />
+              
+              {/* Centered drop text - fixed position */}
+              <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[20] pointer-events-none">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className="text-center bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-2xl px-8 py-6 shadow-2xl border border-blue-200/50 dark:border-blue-600/50"
+                >
+                  <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                    <IoCalendarOutline className="w-10 h-10 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+                    Drop event here
+                  </h3>
+                  <p className="text-blue-500/80 dark:text-blue-400/80 text-sm font-medium">
+                    Add to &ldquo;{timeline.name}&rdquo;
+                  </p>
+                </motion.div>
+              </div>
+            </>
+          )}
+
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
               {/* Timeline Title - Editable in edit mode */}
