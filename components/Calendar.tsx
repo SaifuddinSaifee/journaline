@@ -14,7 +14,7 @@ import {
 } from 'date-fns';
 import { cn } from '../lib/utils';
 import GlassButton from './GlassButton';
-import { IoChevronBack, IoChevronForward, IoChevronDown, IoChevronUp } from 'react-icons/io5';
+import { IoChevronBack, IoChevronForward, IoChevronUp } from 'react-icons/io5';
 import { IoAdd, IoCalendarOutline } from 'react-icons/io5';
 
 interface CalendarProps {
