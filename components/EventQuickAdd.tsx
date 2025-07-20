@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Event } from '../lib/types';
 import { eventService } from '../lib/eventService';
 import { IoCalendarOutline, IoAdd, IoCheckmark, IoSearchOutline } from 'react-icons/io5';
+import Fuse from 'fuse.js';
 import { format } from 'date-fns';
 import GlassButton from './GlassButton';
 
@@ -95,13 +96,14 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
     }
   };
 
-  const filteredEvents = events.filter(event => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      event.title.toLowerCase().includes(searchLower) ||
-      event.description.toLowerCase().includes(searchLower)
-    );
-  });
+  const filteredEvents = useMemo(() => {
+    if (!searchTerm.trim()) return events;
+    const fuse = new Fuse(events, {
+      keys: ['title', 'description'],
+      threshold: 0.4,
+    });
+    return fuse.search(searchTerm).map(r => r.item);
+  }, [events, searchTerm]);
 
   if (isCollapsed) {
     return (

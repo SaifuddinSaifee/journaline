@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
 import GlassCard from './GlassCard';
 import EventCard from './EventCard';
@@ -9,6 +9,7 @@ import { Event, EventFormData, Timeline } from '../lib/types';
 import { eventService } from '../lib/eventService';
 import { timelineService } from '../lib/timelineService';
 import { IoCalendarOutline, IoSearchOutline } from 'react-icons/io5';
+import Fuse from 'fuse.js';
 import Toast from './Toast';
 
 export function Events() {
@@ -246,14 +247,15 @@ export function Events() {
     setModalMode('view'); // Reset to default
   };
 
-  // Filter events based on search term
-  const filteredEvents = events.filter(event => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      event.title.toLowerCase().includes(searchLower) ||
-      event.description.toLowerCase().includes(searchLower)
-    );
-  });
+  // Fuzzy search for events using Fuse.js, most relevant first
+  const filteredEvents = useMemo(() => {
+    if (!searchTerm.trim()) return events;
+    const fuse = new Fuse(events, {
+      keys: ['title', 'description'],
+      threshold: 0.4,
+    });
+    return fuse.search(searchTerm).map(r => r.item);
+  }, [events, searchTerm]);
 
   // Group events by month-year
   const groupedEvents = filteredEvents.reduce((acc, event) => {

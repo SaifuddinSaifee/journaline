@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Timeline } from "../../../lib/types";
 import { timelineService } from "../../../lib/timelineService";
 import GlassCard from "../../../components/GlassCard";
 import GlassButton from "../../../components/GlassButton";
 import NewTimelineModal from "../../../components/NewTimelineModal";
 import { IoAdd, IoEyeOutline, IoPencil, IoTrashOutline, IoSearchOutline } from "react-icons/io5";
+import Fuse from 'fuse.js';
 import Link from "next/link";
 
 export default function TimelinePage() {
@@ -17,13 +18,14 @@ export default function TimelinePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Filter timelines based on search term
-  const filteredTimelines = timelines.filter(timeline => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      timeline.name.toLowerCase().includes(searchLower) ||
-      (timeline.description?.toLowerCase() || "").includes(searchLower)
-    );
-  });
+  const filteredTimelines = useMemo(() => {
+    if (!searchTerm.trim()) return timelines;
+    const fuse = new Fuse(timelines, {
+      keys: ['name', 'description'],
+      threshold: 0.4,
+    });
+    return fuse.search(searchTerm).map(r => r.item);
+  }, [timelines, searchTerm]);
 
   useEffect(() => {
     const fetchTimelines = async () => {
