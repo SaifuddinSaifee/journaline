@@ -18,6 +18,7 @@ import ReactMarkdown from "react-markdown";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, Variants, Transition } from "framer-motion";
+import RichTextEditor from './RichTextEditor';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -123,8 +124,14 @@ export function EventModal({
     field: keyof Omit<EventFormData, "timelineIds" | "date">,
     value: string
   ) => {
-    const maxLength = field === "title" ? 35 : 250;
-    if (value.length > maxLength) return;
+    // For title field, apply length limit
+    if (field === "title") {
+      const maxLength = 35;
+      if (value.length > maxLength) return;
+    }
+
+    // For notes (rich text), skip if the content hasn't actually changed
+    if (field === "notes" && value === formData.notes) return;
 
     setFormData((prev) => ({ ...prev, [field]: value }));
     setIsDirty(true);
@@ -445,48 +452,25 @@ export function EventModal({
                             className="text-xs ml-2 px-2 py-1 bg-gray-500/10 rounded-full"
                             style={{ color: "var(--text-muted)" }}
                           >
-                            Additional details or private notes
+                            Rich text editor with formatting
                           </span>
                         )}
                       </label>
                       {isEditMode ? (
                         <div>
-                          <textarea
-                            id="notes"
+                          <RichTextEditor
                             value={formData.notes || ""}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              if (value.length <= 1000) {
-                                handleInputChange("notes", value);
-                              }
-                            }}
-                            className="w-full px-4 py-3 rounded-lg border surface-elevated backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 resize-none min-h-[150px]"
-                            style={{
-                              color: "var(--text-primary)",
-                              borderColor: "var(--glass-border)",
-                              backgroundColor: "var(--surface-elevated)",
-                            }}
+                            onChange={(value) => handleInputChange("notes", value)}
                             placeholder="Add any additional notes or private details..."
-                            rows={6}
+                            className="w-full px-4 py-3 rounded-lg border surface-elevated backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 min-h-[150px]"
                           />
-                          <div className="flex justify-end mt-2">
-                            <span
-                              className={cn(
-                                "text-xs transition-colors",
-                                (formData.notes?.length || 0) > 900
-                                  ? "text-amber-500"
-                                  : "text-text-muted"
-                              )}
-                            >
-                              {formData.notes?.length || 0}/1000
-                            </span>
-                          </div>
                         </div>
                       ) : (
                         formData.notes ? (
-                          <div className="prose prose-sm max-w-none dark:prose-invert bg-gray-500/5 rounded-lg p-4">
-                            <ReactMarkdown>{formData.notes}</ReactMarkdown>
-                          </div>
+                          <div 
+                            className="prose prose-sm max-w-none dark:prose-invert bg-gray-500/5 rounded-lg p-4 rich-text-view"
+                            dangerouslySetInnerHTML={{ __html: formData.notes }}
+                          />
                         ) : (
                           <div className="text-sm text-gray-500 bg-gray-500/5 rounded-lg p-4">
                             No additional notes
