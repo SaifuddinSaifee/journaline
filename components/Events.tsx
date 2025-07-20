@@ -8,11 +8,12 @@ import EventModal from './EventModal';
 import { Event, EventFormData, Timeline } from '../lib/types';
 import { eventService } from '../lib/eventService';
 import { timelineService } from '../lib/timelineService';
-import { IoCalendarOutline } from 'react-icons/io5';
+import { IoCalendarOutline, IoSearchOutline } from 'react-icons/io5';
 import Toast from './Toast';
 
 export function Events() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [allTimelines, setAllTimelines] = useState<Timeline[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -245,8 +246,17 @@ export function Events() {
     setModalMode('view'); // Reset to default
   };
 
+  // Filter events based on search term
+  const filteredEvents = events.filter(event => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      event.title.toLowerCase().includes(searchLower) ||
+      event.description.toLowerCase().includes(searchLower)
+    );
+  });
+
   // Group events by month-year
-  const groupedEvents = events.reduce((acc, event) => {
+  const groupedEvents = filteredEvents.reduce((acc, event) => {
     // Parse date consistently to avoid timezone issues
     const eventDate = new Date(event.date);
     const year = eventDate.getFullYear();
@@ -282,6 +292,19 @@ export function Events() {
             <p className="text-text-secondary">
               Your journal entries and events. Select a date from the calendar to add new entries.
             </p>
+          </div>
+
+          <div className="mb-6 relative">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search events..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 pl-10 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-gray-700/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              />
+              <IoSearchOutline className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+            </div>
           </div>
 
           {loading || migrating ? (
