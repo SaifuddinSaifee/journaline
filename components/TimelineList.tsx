@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Timeline } from '../lib/types';
 import { timelineService } from '../lib/timelineService';
-import { IoTimeOutline, IoPencil, IoAdd } from 'react-icons/io5';
+import { IoTimeOutline, IoPencil, IoAdd, IoSearchOutline } from 'react-icons/io5';
 import GlassButton from './GlassButton';
 
 interface TimelineListProps {
@@ -14,6 +14,7 @@ interface TimelineListProps {
 export function TimelineList({ isCollapsed }: TimelineListProps) {
   const router = useRouter();
   const [timelines, setTimelines] = useState<Timeline[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +53,14 @@ export function TimelineList({ isCollapsed }: TimelineListProps) {
     router.push('/timeline');
   };
 
+  const filteredTimelines = timelines.filter(timeline => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      timeline.name.toLowerCase().includes(searchLower) ||
+      (timeline.description?.toLowerCase() || '').includes(searchLower)
+    );
+  });
+
   if (isCollapsed) {
     return (
       <div className="space-y-2">
@@ -64,7 +73,7 @@ export function TimelineList({ isCollapsed }: TimelineListProps) {
         >
           <IoAdd className="w-5 h-5" />
         </GlassButton>
-        {!loading && timelines.slice(0, 3).map((timeline) => (
+        {!loading && filteredTimelines.slice(0, 3).map((timeline) => (
           <GlassButton
             key={timeline.id}
             variant="ghost"
@@ -93,6 +102,17 @@ export function TimelineList({ isCollapsed }: TimelineListProps) {
         >
           <IoAdd className="w-4 h-4" />
         </GlassButton>
+      </div>
+
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Search timelines..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-3 py-1.5 pl-8 text-sm bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-gray-700/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+        />
+        <IoSearchOutline className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
       </div>
 
       {loading && (
@@ -125,7 +145,7 @@ export function TimelineList({ isCollapsed }: TimelineListProps) {
 
       {!loading && !error && timelines.length > 0 && (
         <div className="space-y-2 overflow-y-auto">
-          {timelines.map((timeline) => (
+          {filteredTimelines.map((timeline) => (
             <button
               key={timeline.id}
               onClick={() => handleTimelineClick(timeline.id)}

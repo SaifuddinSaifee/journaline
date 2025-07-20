@@ -6,14 +6,24 @@ import { timelineService } from "../../../lib/timelineService";
 import GlassCard from "../../../components/GlassCard";
 import GlassButton from "../../../components/GlassButton";
 import NewTimelineModal from "../../../components/NewTimelineModal";
-import { IoAdd, IoEyeOutline, IoPencil, IoTrashOutline } from "react-icons/io5";
+import { IoAdd, IoEyeOutline, IoPencil, IoTrashOutline, IoSearchOutline } from "react-icons/io5";
 import Link from "next/link";
 
 export default function TimelinePage() {
   const [timelines, setTimelines] = useState<Timeline[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Filter timelines based on search term
+  const filteredTimelines = timelines.filter(timeline => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      timeline.name.toLowerCase().includes(searchLower) ||
+      (timeline.description?.toLowerCase() || "").includes(searchLower)
+    );
+  });
 
   useEffect(() => {
     const fetchTimelines = async () => {
@@ -65,6 +75,17 @@ export default function TimelinePage() {
             </GlassButton>
           </div>
 
+          <div className="relative mb-6">
+            <input
+              type="text"
+              placeholder="Search timelines..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 pl-10 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-gray-700/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            />
+            <IoSearchOutline className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+          </div>
+
           {loading && (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
@@ -91,7 +112,7 @@ export default function TimelinePage() {
 
           {!loading && !error && timelines.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {timelines.map((timeline) => (
+              {filteredTimelines.map((timeline) => (
                 <GlassCard
                   padding="none"
                   key={timeline.id}

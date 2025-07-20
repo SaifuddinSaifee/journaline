@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Event } from '../lib/types';
 import { eventService } from '../lib/eventService';
-import { IoCalendarOutline, IoAdd, IoCheckmark } from 'react-icons/io5';
+import { IoCalendarOutline, IoAdd, IoCheckmark, IoSearchOutline } from 'react-icons/io5';
 import { format } from 'date-fns';
 import GlassButton from './GlassButton';
 
@@ -15,6 +15,7 @@ interface EventQuickAddProps {
 
 export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQuickAddProps) {
   const [events, setEvents] = useState<Event[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addingEventIds, setAddingEventIds] = useState<Set<string>>(new Set());
@@ -94,13 +95,21 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
     }
   };
 
+  const filteredEvents = events.filter(event => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      event.title.toLowerCase().includes(searchLower) ||
+      event.description.toLowerCase().includes(searchLower)
+    );
+  });
+
   if (isCollapsed) {
     return (
       <div className="space-y-2">
         <div className="w-full h-10 flex items-center justify-center">
           <IoCalendarOutline className="w-5 h-5 text-text-secondary" title="Available Events" />
         </div>
-        {!loading && events.slice(0, 2).map((event) => (
+        {!loading && filteredEvents.slice(0, 2).map((event) => (
           <GlassButton
             key={event.id}
             variant="ghost"
@@ -128,6 +137,17 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
         <h3 className="text-sm font-medium text-text-primary">Add Events</h3>
       </div>
 
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Search events..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-3 py-1.5 pl-8 text-sm bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-gray-700/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+        />
+        <IoSearchOutline className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
+      </div>
+
       {loading && (
         <div className="text-center py-4">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mx-auto"></div>
@@ -150,7 +170,7 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
 
       {!loading && !error && events.length > 0 && (
         <div className="space-y-2 overflow-y-auto">
-          {events.map((event) => {
+          {filteredEvents.map((event) => {
             const eventDate = new Date(event.date);
             const isAdding = addingEventIds.has(event.id);
             
