@@ -134,4 +134,33 @@ export interface TimelineResponse {
 }
 
 // Convenience alias used in the UI layer
-export type Timeline = TimelineResponse; 
+export type Timeline = TimelineResponse;
+
+export interface GroupOrder {
+  id: string;
+  y?: number;
+}
+
+// Drag and Drop types
+export interface DragEvent {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  timelineIds: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DragState {
+  isDragging: boolean;
+  draggedEvent: DragEvent | null;
+  dragOrigin: 'sidebar' | null;
+}
+
+export interface DragContextType {
+  dragState: DragState;
+  startDrag: (event: Event, origin: 'sidebar') => void;
+  endDrag: () => void;
+  setDraggedEvent: (event: DragEvent | null) => void;
+} 

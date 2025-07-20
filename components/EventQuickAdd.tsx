@@ -5,7 +5,9 @@ import { Event } from '../lib/types';
 import { eventService } from '../lib/eventService';
 import { IoCalendarOutline, IoAdd, IoCheckmark } from 'react-icons/io5';
 import { format } from 'date-fns';
+import { motion, PanInfo } from 'framer-motion';
 import GlassButton from './GlassButton';
+import { useDrag } from './DragContext';
 
 interface EventQuickAddProps {
   isCollapsed: boolean;
@@ -18,6 +20,9 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [addingEventIds, setAddingEventIds] = useState<Set<string>>(new Set());
+  const [draggedEventId, setDraggedEventId] = useState<string | null>(null);
+  
+  const { startDrag, endDrag, dragState } = useDrag();
 
   useEffect(() => {
     loadEvents();
@@ -94,6 +99,36 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
     }
   };
 
+  const handleDragStart = (event: Event) => {
+    setDraggedEventId(event.id);
+    startDrag(event, 'sidebar');
+  };
+
+  const handleDragEnd = (event: Event, info: PanInfo) => {
+    setDraggedEventId(null);
+    
+    // Check if drag ended over timeline area (right side of screen)
+    const timeline = document.querySelector('[data-timeline-drop-zone]');
+    if (timeline) {
+      const timelineRect = timeline.getBoundingClientRect();
+      const dragX = info.point.x;
+      const dragY = info.point.y;
+      
+      // Check if drop point is within timeline bounds
+      if (
+        dragX >= timelineRect.left &&
+        dragX <= timelineRect.right &&
+        dragY >= timelineRect.top &&
+        dragY <= timelineRect.bottom
+      ) {
+        // Successfully dropped on timeline
+        handleAddEvent(event);
+      }
+    }
+    
+    endDrag();
+  };
+
   if (isCollapsed) {
     return (
       <div className="space-y-2">
@@ -101,21 +136,36 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
           <IoCalendarOutline className="w-5 h-5 text-text-secondary" title="Available Events" />
         </div>
         {!loading && events.slice(0, 2).map((event) => (
-          <GlassButton
+          <motion.div
             key={event.id}
-            variant="ghost"
-            size="sm"
-            onClick={() => handleAddEvent(event)}
-            disabled={addingEventIds.has(event.id)}
-            className="w-full h-10 p-0 flex items-center justify-center text-text-secondary hover:text-text-primary disabled:opacity-50"
-            title={`Add "${event.title}" to timeline`}
+            drag
+            dragMomentum={false}
+            dragElastic={0}
+            onDragStart={() => handleDragStart(event)}
+            onDragEnd={(_, info) => handleDragEnd(event, info)}
+            whileDrag={{ 
+              scale: 1.1, 
+              rotate: 5,
+              zIndex: 50,
+              opacity: 0.8 
+            }}
+            className="cursor-grab active:cursor-grabbing"
           >
-            {addingEventIds.has(event.id) ? (
-              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500" />
-            ) : (
-              <IoAdd className="w-4 h-4" />
-            )}
-          </GlassButton>
+            <GlassButton
+              variant="ghost"
+              size="sm"
+              onClick={() => handleAddEvent(event)}
+              disabled={addingEventIds.has(event.id) || draggedEventId === event.id}
+              className="w-full h-10 p-0 flex items-center justify-center text-text-secondary hover:text-text-primary disabled:opacity-50"
+              title={`Add "${event.title}" to timeline or drag to timeline`}
+            >
+              {addingEventIds.has(event.id) ? (
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500" />
+              ) : (
+                <IoAdd className="w-4 h-4" />
+              )}
+            </GlassButton>
+          </motion.div>
         ))}
       </div>
     );
@@ -126,6 +176,11 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
       <div className="flex items-center gap-2">
         <IoCalendarOutline className="w-4 h-4 text-blue-500" />
         <h3 className="text-sm font-medium text-text-primary">Add Events</h3>
+        {dragState.isDragging && (
+          <span className="text-xs text-blue-500 animate-pulse">
+            Drag to timeline →
+          </span>
+        )}
       </div>
 
       {loading && (
@@ -153,11 +208,29 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
           {events.map((event) => {
             const eventDate = new Date(event.date);
             const isAdding = addingEventIds.has(event.id);
+            const isDragging = draggedEventId === event.id;
             
             return (
-              <div
+              <motion.div
                 key={event.id}
-                className="p-3 rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/70 dark:bg-gray-800/70 shadow-sm hover:shadow-md transition-all duration-200 group backdrop-blur-sm hover:bg-gray-50/80 dark:hover:bg-gray-700/60"
+                drag
+                dragMomentum={false}
+                dragElastic={0}
+                onDragStart={() => handleDragStart(event)}
+                onDragEnd={(_, info) => handleDragEnd(event, info)}
+                whileDrag={{ 
+                  scale: 1.05, 
+                  rotate: 3,
+                  zIndex: 50,
+                  opacity: 0.9,
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.3)"
+                }}
+                animate={{
+                  opacity: isDragging ? 0.5 : 1,
+                }}
+                className={`p-3 rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/70 dark:bg-gray-800/70 shadow-sm hover:shadow-md transition-all duration-200 group backdrop-blur-sm hover:bg-gray-50/80 dark:hover:bg-gray-700/60 ${
+                  isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                }`}
               >
                 <div className="flex items-start gap-2">
                   <div className="flex-1 min-w-0">
@@ -177,8 +250,11 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
                   <GlassButton
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleAddEvent(event)}
-                    disabled={isAdding}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddEvent(event);
+                    }}
+                    disabled={isAdding || isDragging}
                     className="h-8 w-8 p-0 flex items-center justify-center text-text-secondary hover:text-blue-500 disabled:opacity-50 flex-shrink-0"
                     title="Add to timeline"
                   >
@@ -189,7 +265,7 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
                     )}
                   </GlassButton>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>

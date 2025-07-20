@@ -34,6 +34,7 @@ import SortSelector from "./SortSelector";
 import TimelineResponsive from "./TimelineResponsive";
 import GlassButton from "./GlassButton";
 import GlassMessageBox from "./GlassMessageBox";
+import { useDrag } from "./DragContext";
 
 interface TimelineProps {
   timeline: TimelineType;
@@ -66,6 +67,9 @@ export function Timeline({ timeline, mode = 'view', onTimelineUpdate }: Timeline
   const [sortPreference, setSortPreference] = useState<SortPreference>(
     timeline.sortPreference || { field: 'date', order: 'desc' }
   );
+  
+  // Drag and drop state
+  const { dragState } = useDrag();
   
   // Use timelineId from props to fetch events
   const { events, loading, error, refetch } = useTimelineEvents({
@@ -475,8 +479,30 @@ export function Timeline({ timeline, mode = 'view', onTimelineUpdate }: Timeline
 
   return (
     <div className="max-w-6xl mx-auto">
-      <GlassCard variant="default" className="min-h-96">
+      <GlassCard 
+        variant="default" 
+        className={cn(
+          "min-h-96 transition-all duration-300",
+          dragState.isDragging && mode === 'edit' && "ring-2 ring-blue-500/50 ring-offset-2 ring-offset-transparent shadow-xl"
+        )}
+        data-timeline-drop-zone
+      >
         <div className="p-4 sm:p-6">
+          {dragState.isDragging && mode === 'edit' && (
+            <div className="absolute inset-2 border-2 border-dashed border-blue-500/50 rounded-lg bg-blue-50/20 dark:bg-blue-950/20 flex items-center justify-center z-[5] pointer-events-none">
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-500/20 flex items-center justify-center">
+                  <IoCalendarOutline className="w-8 h-8 text-blue-500" />
+                </div>
+                <p className="text-blue-600 dark:text-blue-400 font-medium">
+                  Drop event here to add to timeline
+                </p>
+                <p className="text-blue-500/70 dark:text-blue-400/70 text-sm mt-1">
+                  {timeline.name}
+                </p>
+              </div>
+            </div>
+          )}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
               {/* Timeline Title - Editable in edit mode */}
