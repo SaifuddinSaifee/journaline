@@ -19,19 +19,17 @@ import {
 
 interface MenuBarProps {
   editor: Editor;
+  onOpenLinkDialog: () => void;
 }
 
-const MenuBar = ({ editor }: MenuBarProps) => {
+const MenuBar = ({ editor, onOpenLinkDialog }: MenuBarProps) => {
   if (!editor) {
     return null;
   }
 
   const addLink = (e: React.MouseEvent) => {
     e.preventDefault();
-    const url = window.prompt('Enter URL');
-    if (url) {
-      editor.chain().focus().setLink({ href: url }).run();
-    }
+    onOpenLinkDialog();
   };
 
   const handleButtonClick = (e: React.MouseEvent, callback: () => void) => {
@@ -41,7 +39,7 @@ const MenuBar = ({ editor }: MenuBarProps) => {
   };
 
   return (
-    <div className="border-b border-gray-200/20 flex flex-wrap gap-1 p-2">
+    <div className="editor-toolbar sticky top-0 z-10 border-b border-gray-200/20 flex flex-wrap gap-1 p-2 bg-[var(--surface-elevated)]/80 backdrop-blur-md">
       <button
         type="button"
         onClick={(e) => handleButtonClick(e, () => editor.chain().focus().toggleBold().run())}

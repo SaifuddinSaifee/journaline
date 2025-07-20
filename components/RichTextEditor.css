@@ -1,7 +1,40 @@
 .rich-text-editor {
+  display: flex;
+  flex-direction: column;
+  height: 400px; /* Fixed height instead of max-height */
+  overflow: scroll;
+
+  .editor-toolbar {
+    flex-shrink: 0; /* Prevent toolbar from shrinking */
+  }
+
   .ProseMirror {
-    min-height: 150px;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: scroll;
+    padding: 1rem;
+    padding-top: 0.75rem;
+    min-height: 0; /* Allow content to shrink */
     outline: none;
+
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-color: var(--glass-border);
+      border-radius: 3px;
+    }
+
+    /* Hide scrollbar for Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: var(--glass-border) transparent;
 
     /* Lists styling */
     ul {

@@ -462,7 +462,7 @@ export function EventModal({
                             value={formData.notes || ""}
                             onChange={(value) => handleInputChange("notes", value)}
                             placeholder="Add any additional notes or private details..."
-                            className="w-full px-4 py-3 rounded-lg border surface-elevated backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 min-h-[150px]"
+                            className="w-full px-4 py-3 pt-0 rounded-lg border surface-elevated backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 min-h-[150px]"
                           />
                         </div>
                       ) : (

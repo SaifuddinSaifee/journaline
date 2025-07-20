@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 import './RichTextEditor.css';
 import { useEffect, useCallback } from 'react';
 import MenuBar from './EditorMenuBar';
+import LinkModal from './LinkModal';
+import React from 'react';
 
 interface RichTextEditorProps {
   value: string;
@@ -58,7 +60,7 @@ const RichTextEditor = ({
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[150px] px-4 py-3',
+        class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[150px] px-4 py-3 pt-0',
       },
     },
     // Add these options to handle SSR properly
@@ -74,14 +76,35 @@ const RichTextEditor = ({
     }
   }, [editor, value]);
 
+  const [showLinkModal, setShowLinkModal] = React.useState(false);
+
+  const openLinkDialog = React.useCallback(() => {
+    setShowLinkModal(true);
+  }, []);
+
+  const closeLinkDialog = () => setShowLinkModal(false);
+
+  // Keyboard shortcut Ctrl/Cmd + K
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openLinkDialog();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [openLinkDialog]);
+
   if (!editor) {
     return null;
   }
 
   return (
     <div className={cn('rich-text-editor rounded-lg border surface-elevated backdrop-blur-sm', className)}>
-      <MenuBar editor={editor} />
+      <MenuBar editor={editor} onOpenLinkDialog={openLinkDialog} />
       <EditorContent editor={editor} />
+      <LinkModal isOpen={showLinkModal} onClose={closeLinkDialog} editor={editor} />
     </div>
   );
 };
