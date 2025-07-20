@@ -10,6 +10,7 @@ export interface EventDocument {
   title: string;
   description: string;
   date: Date;
+  notes?: string;
 
   timelineIds: ObjectId[];
 
@@ -30,6 +31,7 @@ export interface EventFormData {
   title: string;
   description: string;
   date?: string; // ISO 8601 string – required on create, optional on update
+  notes?: string;
 
   timelineIds: string[];
 
@@ -44,6 +46,7 @@ export interface EventResponse {
   title: string;
   description: string;
   date: string;
+  notes?: string;
 
   timelineIds: string[];
 

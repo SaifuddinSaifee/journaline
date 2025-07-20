@@ -75,6 +75,16 @@ export async function PUT(
       updateData.description = body.description.trim();
     }
 
+    if (body.notes !== undefined) {
+      if (typeof body.notes !== 'string') {
+        return NextResponse.json(
+          { error: 'Notes must be a string' },
+          { status: 400 }
+        );
+      }
+      updateData.notes = body.notes.trim();
+    }
+
     if (body.timelineIds !== undefined) {
       if (!Array.isArray(body.timelineIds) || !body.timelineIds.every((id: unknown) => typeof id === 'string' && id.trim().length > 0)) {
         return NextResponse.json(

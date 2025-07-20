@@ -29,6 +29,7 @@ export class EventModel {
       title: doc.title,
       description: doc.description,
       date: doc.date.toISOString(),
+      notes: doc.notes,
 
       timelineIds: doc.timelineIds.map(id => id.toString()),
 
@@ -57,6 +58,7 @@ export class EventModel {
         title: eventData.title.trim(),
         description: eventData.description.trim(),
         date: new Date(eventData.date),
+        notes: eventData.notes?.trim(),
 
         timelineIds: eventData.timelineIds.map(id => new ObjectId(id)),
 
@@ -147,6 +149,9 @@ export class EventModel {
       }
       if (eventData.description !== undefined) {
         updateData.description = eventData.description.trim();
+      }
+      if (eventData.notes !== undefined) {
+        updateData.notes = eventData.notes.trim();
       }
       if (eventData.timelineIds !== undefined) {
         updateData.timelineIds = eventData.timelineIds.map(id => new ObjectId(id));

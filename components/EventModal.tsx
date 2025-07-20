@@ -54,6 +54,7 @@ export function EventModal({
     description: "",
     timelineIds: [],
     date: selectedDate?.toISOString() || new Date().toISOString(),
+    notes: "",
   });
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -69,6 +70,7 @@ export function EventModal({
           description: event.description,
           timelineIds: event.timelineIds || [],
           date: event.date,
+          notes: event.notes || "",
         });
         setIsEditMode(initialMode === 'edit'); // Use initialMode to set edit state
       } else {
@@ -77,6 +79,7 @@ export function EventModal({
           description: "",
           timelineIds: [],
           date: selectedDate?.toISOString() || new Date().toISOString(),
+          notes: "",
         });
         setIsEditMode(true); // New events always start in edit mode
       }
@@ -101,6 +104,7 @@ export function EventModal({
         description: event.description,
         timelineIds: event.timelineIds || [],
         date: event.date,
+        notes: event.notes || "",
       });
     }
     setIsEditMode(false);
@@ -425,6 +429,69 @@ export function EventModal({
                         <div className="prose prose-sm max-w-none dark:prose-invert bg-gray-500/5 rounded-lg p-4">
                           <ReactMarkdown>{formData.description}</ReactMarkdown>
                         </div>
+                      )}
+                    </div>
+
+                    {/* Notes Section - Add this after the Description Section */}
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="notes"
+                        className="block text-sm font-medium"
+                        style={{ color: "var(--text-primary)" }}
+                      >
+                        Notes
+                        {isEditMode && (
+                          <span
+                            className="text-xs ml-2 px-2 py-1 bg-gray-500/10 rounded-full"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            Additional details or private notes
+                          </span>
+                        )}
+                      </label>
+                      {isEditMode ? (
+                        <div>
+                          <textarea
+                            id="notes"
+                            value={formData.notes || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value.length <= 1000) {
+                                handleInputChange("notes", value);
+                              }
+                            }}
+                            className="w-full px-4 py-3 rounded-lg border surface-elevated backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 resize-none min-h-[150px]"
+                            style={{
+                              color: "var(--text-primary)",
+                              borderColor: "var(--glass-border)",
+                              backgroundColor: "var(--surface-elevated)",
+                            }}
+                            placeholder="Add any additional notes or private details..."
+                            rows={6}
+                          />
+                          <div className="flex justify-end mt-2">
+                            <span
+                              className={cn(
+                                "text-xs transition-colors",
+                                (formData.notes?.length || 0) > 900
+                                  ? "text-amber-500"
+                                  : "text-text-muted"
+                              )}
+                            >
+                              {formData.notes?.length || 0}/1000
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        formData.notes ? (
+                          <div className="prose prose-sm max-w-none dark:prose-invert bg-gray-500/5 rounded-lg p-4">
+                            <ReactMarkdown>{formData.notes}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500 bg-gray-500/5 rounded-lg p-4">
+                            No additional notes
+                          </div>
+                        )
                       )}
                     </div>
 
