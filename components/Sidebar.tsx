@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { usePathname, useParams } from 'next/navigation';
-import GlassButton from './GlassButton';
 import Calendar from './Calendar';
 import TimelineList from './TimelineList';
 import EventQuickAdd from './EventQuickAdd';
@@ -16,7 +15,6 @@ interface SidebarProps {
 export function Sidebar({ className }: SidebarProps) {
   const { isCollapsed, toggleSidebar } = useSidebar();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [isCalendarCollapsed, setIsCalendarCollapsed] = useState(false);
   const pathname = usePathname();
   const params = useParams();
 
@@ -37,10 +35,6 @@ export function Sidebar({ className }: SidebarProps) {
       detail: { date: adjustedDate }
     });
     window.dispatchEvent(event);
-  };
-
-  const handleCalendarCollapseChange = (collapsed: boolean) => {
-    setIsCalendarCollapsed(collapsed);
   };
 
   const renderContextualContent = () => {
@@ -85,7 +79,6 @@ export function Sidebar({ className }: SidebarProps) {
               <Calendar
                 selectedDate={selectedDate}
                 onDateSelect={handleDateSelect}
-                onCollapseChange={handleCalendarCollapseChange}
               />
             ) : (
               <div className="p-2 flex justify-center">
