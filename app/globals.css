@@ -14,6 +14,11 @@
   --glass-shadow: rgba(0, 0, 0, 0.1);
   --glass-shadow-strong: rgba(0, 0, 0, 0.15);
   
+  /* Divider Colors */
+  --divider-subtle: rgba(100, 116, 139, 0.15);
+  --divider-default: rgba(100, 116, 139, 0.2);
+  --divider-emphasis: rgba(100, 116, 139, 0.3);
+  
   /* Primary Glass Colors */
   --glass-primary: rgba(59, 130, 246, 0.1);
   --glass-primary-strong: rgba(59, 130, 246, 0.2);
@@ -54,6 +59,11 @@
   --text-secondary: #475569;
   --text-muted: #64748b;
   --text-on-glass: #1e293b;
+
+  /* Link Colors */
+  --link-color: #2563eb;
+  --link-hover: #1d4ed8;
+  --link-visited: #7c3aed;
   
   /* Border Radius */
   --radius-sm: 8px;
@@ -81,6 +91,11 @@
   --glass-border: rgba(82, 82, 82, 0.3);
   --glass-shadow: rgba(0, 0, 0, 0.4);
   --glass-shadow-strong: rgba(0, 0, 0, 0.6);
+  
+  /* Divider Colors */
+  --divider-subtle: rgba(148, 163, 184, 0.1);
+  --divider-default: rgba(148, 163, 184, 0.15);
+  --divider-emphasis: rgba(148, 163, 184, 0.2);
   
   /* Primary Glass Colors */
   --glass-primary: rgba(72, 182, 245, 0.15);
@@ -122,6 +137,11 @@
   --text-secondary: #e5e5e5;
   --text-muted: #a3a3a3;
   --text-on-glass: #fafafa;
+
+  /* Link Colors */
+  --link-color: #60a5fa;
+  --link-hover: #93c5fd;
+  --link-visited: #a78bfa;
 }
 
 @theme inline {

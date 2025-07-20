@@ -18,6 +18,7 @@ import ReactMarkdown from "react-markdown";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, Variants, Transition } from "framer-motion";
+import RichTextEditor from './RichTextEditor';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -54,6 +55,7 @@ export function EventModal({
     description: "",
     timelineIds: [],
     date: selectedDate?.toISOString() || new Date().toISOString(),
+    notes: "",
   });
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -69,6 +71,7 @@ export function EventModal({
           description: event.description,
           timelineIds: event.timelineIds || [],
           date: event.date,
+          notes: event.notes || "",
         });
         setIsEditMode(initialMode === 'edit'); // Use initialMode to set edit state
       } else {
@@ -77,6 +80,7 @@ export function EventModal({
           description: "",
           timelineIds: [],
           date: selectedDate?.toISOString() || new Date().toISOString(),
+          notes: "",
         });
         setIsEditMode(true); // New events always start in edit mode
       }
@@ -101,6 +105,7 @@ export function EventModal({
         description: event.description,
         timelineIds: event.timelineIds || [],
         date: event.date,
+        notes: event.notes || "",
       });
     }
     setIsEditMode(false);
@@ -119,8 +124,14 @@ export function EventModal({
     field: keyof Omit<EventFormData, "timelineIds" | "date">,
     value: string
   ) => {
-    const maxLength = field === "title" ? 35 : 250;
-    if (value.length > maxLength) return;
+    // For title field, apply length limit
+    if (field === "title") {
+      const maxLength = 35;
+      if (value.length > maxLength) return;
+    }
+
+    // For notes (rich text), skip if the content hasn't actually changed
+    if (field === "notes" && value === formData.notes) return;
 
     setFormData((prev) => ({ ...prev, [field]: value }));
     setIsDirty(true);
@@ -428,6 +439,46 @@ export function EventModal({
                       )}
                     </div>
 
+                    {/* Notes Section - Add this after the Description Section */}
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="notes"
+                        className="block text-sm font-medium"
+                        style={{ color: "var(--text-primary)" }}
+                      >
+                        Notes
+                        {isEditMode && (
+                          <span
+                            className="text-xs ml-2 px-2 py-1 bg-gray-500/10 rounded-full"
+                            style={{ color: "var(--text-muted)" }}
+                          >
+                            Rich text editor with formatting
+                          </span>
+                        )}
+                      </label>
+                      {isEditMode ? (
+                        <div>
+                          <RichTextEditor
+                            value={formData.notes || ""}
+                            onChange={(value) => handleInputChange("notes", value)}
+                            placeholder="Add any additional notes or private details..."
+                            className="w-full px-4 py-3 pt-0 rounded-lg border surface-elevated backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 min-h-[150px]"
+                          />
+                        </div>
+                      ) : (
+                        formData.notes ? (
+                          <div 
+                            className="prose prose-sm max-w-none dark:prose-invert bg-gray-500/5 rounded-lg p-4 rich-text-view"
+                            dangerouslySetInnerHTML={{ __html: formData.notes }}
+                          />
+                        ) : (
+                          <div className="text-sm text-gray-500 bg-gray-500/5 rounded-lg p-4">
+                            No additional notes
+                          </div>
+                        )
+                      )}
+                    </div>
+
                     {/* Timelines Section */}
                     <div className="space-y-2">
                       <label
@@ -499,7 +550,7 @@ export function EventModal({
                             <button
                               key={timeline.id}
                               onClick={() => handleTimelineClick(timeline.id)}
-                              className="inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors group"
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium bg-blue-500/20 text-blue-700 dark:text-blue-400 hover:bg-blue-500/30 transition-colors group"
                             >
                               <MdTimeline className="w-5 h-5 group-hover:scale-110 transition-transform" />
                               {timeline.name}

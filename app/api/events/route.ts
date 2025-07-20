@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, description, timelineIds, date } = body;
+    const { title, description, timelineIds, date, notes } = body;
 
     // Validate required fields
     if (!title || !description || !date) {
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
       description: description.trim(),
       timelineIds: timelineIds || [], // Default to an empty array if not provided
       date: parsedDate.toISOString(), // Store as ISO string to maintain consistency
+      notes: notes?.trim() || "", // Add notes with default empty string
     };
 
     const event = await EventModel.create(eventData);
