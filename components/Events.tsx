@@ -102,10 +102,7 @@ export function Events() {
     try {
       if (eventId) {
         // Update existing event
-        const result = await eventService.updateEvent(eventId, {
-          ...eventData,
-          date: selectedEvent!.date, // Keep the existing date
-        });
+        const result = await eventService.updateEvent(eventId, eventData);
 
         if (result.error) {
           setError(result.error);
