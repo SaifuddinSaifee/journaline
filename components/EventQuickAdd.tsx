@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Event } from '../lib/types';
 import { eventService } from '../lib/eventService';
 import { IoCalendarOutline, IoAdd, IoCheckmark, IoSearchOutline } from 'react-icons/io5';
@@ -21,22 +21,7 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
   const [error, setError] = useState<string | null>(null);
   const [addingEventIds, setAddingEventIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    loadEvents();
-  }, []);
-
-  // Listen for events updates
-  useEffect(() => {
-    const handleEventUpdate = () => {
-      console.log('EventQuickAdd: Received events-updated event, refreshing event list...');
-      loadEvents();
-    };
-
-    window.addEventListener('events-updated', handleEventUpdate);
-    return () => window.removeEventListener('events-updated', handleEventUpdate);
-  }, []);
-
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -59,7 +44,22 @@ export function EventQuickAdd({ isCollapsed, timelineId, onEventAdded }: EventQu
     } finally {
       setLoading(false);
     }
-  };
+  }, [timelineId]);
+
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
+
+  // Listen for events updates
+  useEffect(() => {
+    const handleEventUpdate = () => {
+      console.log('EventQuickAdd: Received events-updated event, refreshing event list...');
+      loadEvents();
+    };
+
+    window.addEventListener('events-updated', handleEventUpdate);
+    return () => window.removeEventListener('events-updated', handleEventUpdate);
+  }, [loadEvents]);
 
   const handleAddEvent = async (event: Event) => {
     if (addingEventIds.has(event.id)) return;

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import ThemeToggle from './ThemeToggle';
 import SectionToggle from './SectionToggle';
 import { cn } from '../lib/utils';
@@ -33,6 +34,13 @@ export function Navbar({ className }: NavbarProps) {
 
         {/* Right Side Actions */}
         <div className="flex items-center gap-4">
+          <Link
+            href="/settings"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            title="Settings"
+          >
+            <span className="text-xl">⚙️</span>
+          </Link>
           <ThemeToggle />
         </div>
       </div>
