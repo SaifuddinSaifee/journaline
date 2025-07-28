@@ -2,18 +2,11 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { IoHomeOutline, IoGlobeOutline, IoSettingsOutline } from 'react-icons/io5';
+import { IoGlobeOutline, IoSettingsOutline } from 'react-icons/io5';
 import { GlassCard } from '@/components/GlassCard';
 
 // Settings categories with proper icons
 const settingsCategories = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    href: '/settings',
-    icon: IoHomeOutline,
-    description: 'Overview of all available settings and configurations.'
-  },
   {
     id: 'timezone',
     label: 'Timezone',

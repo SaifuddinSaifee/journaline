@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import ThemeToggle from './ThemeToggle';
 import SectionToggle from './SectionToggle';
+import { IoSettingsOutline } from 'react-icons/io5';
 import { cn } from '../lib/utils';
 
 interface NavbarProps {
@@ -36,10 +37,10 @@ export function Navbar({ className }: NavbarProps) {
         <div className="flex items-center gap-4">
           <Link
             href="/settings"
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-700 dark:text-gray-300"
             title="Settings"
           >
-            <span className="text-xl">⚙️</span>
+            <IoSettingsOutline className="w-5 h-5" />
           </Link>
           <ThemeToggle />
         </div>

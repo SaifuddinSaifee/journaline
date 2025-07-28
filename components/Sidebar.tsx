@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { usePathname, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { IoHomeOutline, IoSettingsOutline, IoGlobeOutline, IoCalendarOutline } from 'react-icons/io5';
+import { IoHomeOutline, IoGlobeOutline, IoCalendarOutline } from 'react-icons/io5';
 import Calendar from './Calendar';
 import TimelineList from './TimelineList';
 import EventQuickAdd from './EventQuickAdd';
